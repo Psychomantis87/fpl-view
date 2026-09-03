@@ -797,8 +797,8 @@
   // Full terms - used for the Status filter panel and the cell's hover title.
   // The table cell itself shows just the raw single-letter code (A/D/I/S/U).
   const STATUS_DICT = {a:"Available", i:"Injured", u:"Unavailable", d:"Doubtful", s:"Suspended"};
-  const SNAPSHOT_DATE = REMOTE.updatedAt ? REMOTE.updatedAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
-  const SNAPSHOT_DATETIME = REMOTE.updatedAt || new Date().toISOString();
+  let SNAPSHOT_DATE = REMOTE.updatedAt ? REMOTE.updatedAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  let SNAPSHOT_DATETIME = REMOTE.updatedAt || new Date().toISOString();
 
   const COLUMN_INFO = {
     player_name:{group:"Identity",label:"Player"},
@@ -2260,7 +2260,7 @@
     const pos = ["Goalkeeper","Defender","Midfielder","Forward"][i];
     c.setAttribute("aria-pressed", posFilter.has(pos) ? "true" : "false");
   });
-  (function(){
+  function updateBadgeStamp(){
     const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const snapDateTime = new Date(SNAPSHOT_DATETIME);
     const parts = new Intl.DateTimeFormat("en-GB", {
@@ -2271,7 +2271,29 @@
     const dateStr = parseInt(get("day"), 10) + " " + MONTHS[parseInt(get("month"), 10) - 1] + " " + get("year");
     const stamp = dateStr + ", " + get("hour") + ":" + get("minute") + " CET"; // e.g. "2 Sep 26, 14:09 CET"
     document.getElementById("updatedText").textContent = "Last Updated " + stamp;
-  })();
+  }
+  updateBadgeStamp();
+  // Silently re-fetch and re-render every 10 minutes (matches the Edge
+  // Function's own cron cadence) - never touches the loading/error overlay,
+  // so a transient failure just gets retried next cycle instead of
+  // disrupting whatever the visitor is currently looking at.
+  async function refreshFromServer(){
+    try{
+      const fresh = await loadRemoteData();
+      PLAYERS.length = 0;
+      fresh.players.forEach(p => { p.fixtures = fresh.fixtures[p.team_name] || []; PLAYERS.push(p); });
+      Object.keys(TEAM_FIXTURES).forEach(k => delete TEAM_FIXTURES[k]);
+      Object.assign(TEAM_FIXTURES, fresh.fixtures);
+      SNAPSHOT_DATE = fresh.updatedAt ? fresh.updatedAt.slice(0, 10) : SNAPSHOT_DATE;
+      SNAPSHOT_DATETIME = fresh.updatedAt || SNAPSHOT_DATETIME;
+      updateBadgeStamp();
+      render();
+      if (teamViewBuilt) renderTeamView();
+    }catch(err){
+      console.warn("Background data refresh failed, will retry next cycle:", err);
+    }
+  }
+  setInterval(refreshFromServer, 10 * 60 * 1000);
   applyTheme();
   applyMenuPosition();
   buildColPanel();
