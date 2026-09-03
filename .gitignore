@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.env
+.env.local
+.DS_Store
+node_modules/
+supabase_config.json

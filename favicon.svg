@@ -1,0 +1,10 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+<defs><clipPath id="brandRoundedSquare"><rect x="0" y="0" width="512" height="512" rx="108" ry="108"/></clipPath></defs>
+<g clip-path="url(#brandRoundedSquare)">
+<rect x="0" y="0" width="512" height="512" fill="#14171C"/>
+<line x1="104" y1="180" x2="408" y2="180" stroke="#DC143C" stroke-width="56" stroke-linecap="round"/>
+<line x1="104" y1="332" x2="408" y2="332" stroke="#00FF00" stroke-width="56" stroke-linecap="round"/>
+<line x1="180" y1="104" x2="180" y2="408" stroke="#FFD700" stroke-width="56" stroke-linecap="round"/>
+<line x1="332" y1="104" x2="332" y2="408" stroke="#00CED1" stroke-width="56" stroke-linecap="round"/>
+</g>
+</svg>

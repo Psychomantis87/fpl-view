@@ -1,0 +1,2298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FPL View</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Standalone-build reset (claude.ai's Artifact viewer normally supplies this) */
+  :root{color-scheme:light dark;}
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;}
+  img{max-width:100%;}
+  [hidden]{display:none !important;}
+  :root{
+    --bg:#EEE9DF;
+    --surface:#F6F5F4;
+    --surface-2:#E4DED2;
+    --surface-hover:#DBD4C4;
+    --border:#D2C8B5;
+    --border-strong:#C3B59A;
+    --text:#16241C;
+    --text-muted:#5E6D62;
+    --text-faint:#8B968C;
+    --accent:#1E7A4C;
+    --accent-soft:#E1F0E6;
+    --accent-contrast:#FFFFFF;
+    --gold:#93691A;
+    --price:#1F6FB2;
+    --status-injured:#D6453D;
+    --status-suspended:#A62639;
+    --gk:#FFD700;
+    --def:#DC143C;
+    --mid:#00FF00;
+    --fwd:#00CED1;
+    --shadow:0 1px 2px rgba(22,36,28,.06), 0 6px 16px rgba(22,36,28,.07);
+    --focus:#1E7A4C;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#071018;
+      --surface:#111F2D;
+      --surface-2:#14283B;
+      --surface-hover:#19324A;
+      --border:#223E59;
+      --border-strong:#2D5071;
+      --text:#E9F1E7;
+      --text-muted:#9CAE9B;
+      --text-faint:#69796B;
+      --accent:#4FCE8F;
+      --accent-soft:#1A3126;
+      --accent-contrast:#0E1611;
+      --gold:#DEB559;
+      --price:#90D5FF;
+      --status-injured:#F26B62;
+      --status-suspended:#E0505A;
+      --gk:#FFD700;
+      --def:#DC143C;
+      --mid:#00FF00;
+      --fwd:#00CED1;
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 20px rgba(0,0,0,.35);
+      --focus:#4FCE8F;
+    }
+  }
+  /* body[data-theme] is this app's own explicit Dark/Light toggle (Settings
+     panel) - separate from the claude.ai viewer's own theme, which only
+     touches the outer :root/html element above. A value declared directly on
+     body always wins over whatever body would otherwise inherit from :root,
+     so this reliably overrides the viewer's theme without fighting it. */
+  :root[data-theme="dark"], body[data-theme="dark"]{
+    --bg:#071018;
+    --surface:#111F2D;
+    --surface-2:#14283B;
+    --surface-hover:#19324A;
+    --border:#223E59;
+    --border-strong:#2D5071;
+    --text:#E9F1E7;
+    --text-muted:#9CAE9B;
+    --text-faint:#69796B;
+    --accent:#4FCE8F;
+    --accent-soft:#1A3126;
+    --accent-contrast:#0E1611;
+    --gold:#DEB559;
+    --price:#90D5FF;
+    --status-injured:#F26B62;
+    --status-suspended:#E0505A;
+    --gk:#FFD700;
+    --def:#DC143C;
+    --mid:#00FF00;
+    --fwd:#00CED1;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 20px rgba(0,0,0,.35);
+    --focus:#4FCE8F;
+  }
+  body[data-theme="light"]{
+    --bg:#EEE9DF;
+    --surface:#F6F5F4;
+    --surface-2:#E4DED2;
+    --surface-hover:#DBD4C4;
+    --border:#D2C8B5;
+    --border-strong:#C3B59A;
+    --text:#16241C;
+    --text-muted:#5E6D62;
+    --text-faint:#8B968C;
+    --accent:#1E7A4C;
+    --accent-soft:#E1F0E6;
+    --accent-contrast:#FFFFFF;
+    --gold:#93691A;
+    --price:#1F6FB2;
+    --status-injured:#D6453D;
+    --status-suspended:#A62639;
+    --gk:#FFD700;
+    --def:#DC143C;
+    --mid:#00FF00;
+    --fwd:#00CED1;
+    --shadow:0 1px 2px rgba(22,36,28,.06), 0 6px 16px rgba(22,36,28,.07);
+    --focus:#1E7A4C;
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Public Sans",-apple-system,"Segoe UI",sans-serif;
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+  ::selection{background:var(--accent-soft);}
+
+  h1,h2,.label-font,button,select,.chip,.col-group h3{
+    font-family:"Barlow Condensed",Impact,"Public Sans",sans-serif;
+  }
+  .num{
+    font-family:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+    font-variant-numeric:tabular-nums;
+  }
+
+  a{color:var(--accent);}
+
+  /* ---- Header ---- */
+  header{
+    padding:18px 24px 14px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+    background:var(--surface);
+  }
+  header .title-block{display:flex; align-items:baseline; gap:10px;}
+  header .header-text{display:flex; align-items:center; gap:12px; flex:1 1 auto; min-width:220px;}
+  .brand-mark{flex:none; width:40px; height:40px; border-radius:9px; overflow:hidden; display:block;}
+  .brand-mark svg{display:block; width:100%; height:100%;}
+  .header-actions{display:flex; gap:8px; align-items:center;}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
+  .btn.primary:hover{filter:brightness(1.06);}
+  .btn[disabled]{opacity:.6; cursor:default;}
+  .btn.active-filter{border-color:var(--accent); color:var(--accent); background:var(--accent-soft);}
+  .col-picker > .btn::after{
+    content:""; display:inline-block; margin-left:6px;
+    width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent;
+    border-top:5px solid currentColor; vertical-align:middle; opacity:.55;
+  }
+
+  .view-switch{
+    display:inline-flex; padding:3px; border-radius:9px; background:var(--surface-2); border:1px solid var(--border-strong); gap:2px;
+  }
+  .view-tab{
+    all:unset; padding:6px 14px 5px; border-radius:6px; cursor:pointer;
+    font-family:"Barlow Condensed",Impact,"Public Sans",sans-serif; font-size:14px; font-weight:600; letter-spacing:.2px;
+    color:var(--text-muted);
+  }
+  .view-tab:hover{color:var(--text);}
+  .view-tab.active{background:var(--surface); color:var(--text); box-shadow:var(--shadow);}
+  .updated-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12.5px; color:var(--text-muted);
+    padding:6px 12px; border:1px solid var(--border-strong); border-radius:999px;
+    background:var(--surface); white-space:nowrap; cursor:default;
+  }
+  .updated-dot{width:7px; height:7px; border-radius:50%; background:var(--accent); flex:none;}
+
+  #viewsPanel{width:280px;}
+  .views-save-row{display:flex; gap:6px; padding:2px 2px 10px; border-bottom:1px solid var(--border); margin-bottom:6px;}
+  .views-input{
+    flex:1; min-width:0; padding:6px 9px; border-radius:6px; border:1px solid var(--border-strong);
+    background:var(--surface); color:var(--text); font-size:13px; font-family:"Public Sans",sans-serif;
+  }
+  .views-save-row .btn{padding:6px 12px 5px; font-size:13px;}
+  .view-row{
+    display:flex; align-items:center; gap:4px; border-radius:6px;
+  }
+  .view-row:hover{background:var(--surface-hover);}
+  .view-name{
+    all:unset; flex:1; min-width:0; padding:7px 8px; cursor:pointer; font-size:13.5px;
+    color:var(--text); font-family:"Public Sans",sans-serif;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .view-delete{
+    all:unset; padding:6px 8px; cursor:pointer; color:var(--text-faint); font-size:12px; border-radius:6px;
+  }
+  .view-delete:hover{color:var(--fwd); background:var(--surface-hover);}
+  .views-empty{padding:8px 6px; font-size:12.5px; color:var(--text-faint);}
+  h1{
+    font-size:36px;
+    font-weight:700;
+    letter-spacing:.2px;
+    margin:0;
+    text-wrap:balance;
+  }
+  header .meta{
+    font-size:13px;
+    color:var(--text-muted);
+  }
+  header .meta a{color:var(--text-muted); text-decoration:underline;}
+  header .meta a:hover{color:var(--accent);}
+
+  /* ---- Toolbar ---- */
+  .toolbar{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    padding:12px 24px;
+    border-bottom:1px solid var(--border);
+    background:var(--surface-2);
+  }
+
+  /* "Menu bar on the left" setting - the same #toolbar element gets moved
+     into #leftDock instead of sitting above #main, and re-laid-out as a
+     vertical sidebar column. */
+  #bodyRow{display:flex; flex:1; min-height:0;}
+  #leftDock{flex:none; width:175px; overflow-y:auto; overflow-x:hidden; border-right:1px solid var(--border); background:var(--surface-2);}
+  #leftDock[hidden]{display:none;}
+  #leftDock .toolbar{
+    flex-direction:column; align-items:stretch; flex-wrap:nowrap;
+    height:100%; padding:16px 14px; border-bottom:none; gap:12px;
+  }
+  /* .search-box's 260px flex-basis is a horizontal-mode width; in the column
+     layout that becomes a height, leaving a tall empty gap - reset it here. */
+  #leftDock .toolbar .search-box{flex:0 0 auto;}
+  #leftDock .toolbar .spacer{flex:1 0 auto;}
+  /* Narrower sidebar - let multi-part rows (position chips, the Price range
+     inputs, the "Showing N of N" count text) wrap instead of overflowing. */
+  #leftDock .toolbar .count{white-space:normal;}
+  /* Grid instead of flex-wrap here: guarantees a clean 2-per-row split
+     (GK/DEF, then MID/FWD) instead of however many chips happen to fit. */
+  #leftDock .toolbar .chip-group{display:grid; grid-template-columns:repeat(2, 1fr); gap:6px;}
+  #leftDock .toolbar .chip-group .chip{text-align:center;}
+  #leftDock .toolbar .price-inline{flex-wrap:wrap;}
+  #contentCol{display:flex; flex-direction:column; flex:1; min-width:0; min-height:0;}
+  .search-box{
+    position:relative;
+    flex:0 1 260px;
+  }
+  .search-box input{
+    width:100%;
+    padding:8px 10px 8px 30px;
+    border-radius:7px;
+    border:1px solid var(--border-strong);
+    background:var(--surface);
+    color:var(--text);
+    font-size:14px;
+    font-family:inherit;
+  }
+  .search-box svg{
+    position:absolute; left:9px; top:50%; transform:translateY(-50%);
+    width:14px; height:14px; color:var(--text-faint); pointer-events:none;
+  }
+  .search-box input:focus, select:focus, button:focus-visible{
+    outline:2px solid var(--focus); outline-offset:1px;
+  }
+
+  .chip-group{display:flex; gap:6px;}
+  .chip{
+    border:1px solid var(--border-strong);
+    background:var(--surface);
+    color:var(--text-muted);
+    padding:6px 13px 5px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:.3px;
+    cursor:pointer;
+    line-height:1;
+  }
+  .chip.chip-GK{border-color:var(--gk);}
+  .chip.chip-DEF{border-color:var(--def);}
+  .chip.chip-MID{border-color:var(--mid);}
+  .chip.chip-FWD{border-color:var(--fwd);}
+  .chip[aria-pressed="true"]{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:var(--accent-contrast);
+  }
+  .chip:hover:not([aria-pressed="true"]){background:var(--surface-hover);}
+
+  select{
+    padding:7px 10px;
+    border-radius:7px;
+    border:1px solid var(--border-strong);
+    background:var(--surface);
+    color:var(--text);
+    font-size:14px;
+    font-family:"Public Sans",sans-serif;
+  }
+
+  .btn{
+    padding:7px 14px 6px;
+    border-radius:7px;
+    border:1px solid var(--border-strong);
+    background:var(--surface);
+    color:var(--text);
+    font-size:14px;
+    font-weight:600;
+    letter-spacing:.2px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .btn:hover{background:var(--surface-hover);}
+  .btn.ghost{border-color:transparent; background:transparent; color:var(--text-muted);}
+  .btn.ghost:hover{color:var(--text); background:var(--surface-hover);}
+  .btn.ghost.active-filter{border-color:var(--accent); color:var(--accent); background:var(--accent-soft);}
+
+  .select-all-toggle{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:7px 13px 6px; border-radius:7px; border:1px solid var(--border-strong);
+    background:var(--surface); color:var(--text);
+    font-family:"Barlow Condensed",Impact,"Public Sans",sans-serif;
+    font-size:14px; font-weight:600; letter-spacing:.2px; cursor:pointer; white-space:nowrap;
+  }
+  .select-all-toggle:hover{background:var(--surface-hover);}
+
+  .spacer{flex:1;}
+  .count{
+    font-size:13px;
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
+  .count b{color:var(--text); font-weight:700;}
+
+  /* ---- Column picker ---- */
+  .col-picker{position:relative;}
+  .col-panel{
+    position:absolute;
+    right:0; top:calc(100% + 6px);
+    width:420px;
+    max-height:70vh;
+    overflow-y:auto;
+    background:var(--surface);
+    border:1px solid var(--border-strong);
+    border-radius:10px;
+    box-shadow:var(--shadow);
+    padding:10px;
+    z-index:40;
+  }
+  .col-panel[hidden]{display:none;}
+  .col-panel-actions{
+    display:flex; gap:8px; padding:2px 4px 10px; border-bottom:1px solid var(--border); margin-bottom:8px;
+  }
+  .col-panel-actions button{
+    font-size:12px; padding:4px 9px; font-family:"Public Sans",sans-serif; font-weight:600;
+    border-radius:6px; border:1px solid var(--border-strong); background:var(--surface); color:var(--text-muted); cursor:pointer;
+  }
+  .col-panel-actions button:hover{background:var(--surface-hover); color:var(--text);}
+  .col-group{margin-bottom:6px;}
+  .col-group h3{
+    font-size:15px;
+    font-weight:600;
+    letter-spacing:.3px;
+    color:var(--text-muted);
+    margin:8px 4px 4px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .col-group h3 button{
+    font-size:11px; font-family:"Public Sans",sans-serif; font-weight:600;
+    color:var(--accent); background:none; border:none; cursor:pointer; padding:0;
+  }
+  .col-row{
+    display:flex; align-items:center; gap:8px;
+    padding:5px 6px;
+    border-radius:6px;
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .col-row:hover{background:var(--surface-hover);}
+  .col-row input{accent-color:var(--accent); cursor:pointer;}
+  .col-row.locked{opacity:.55; cursor:default;}
+  .col-row.locked:hover{background:none;}
+
+  /* ---- Table ---- */
+  main{
+    flex:1;
+    min-height:0; /* let this flex item shrink to the viewport instead of growing to fit the table */
+    display:flex;
+    flex-direction:column;
+    padding:0 24px 24px;
+  }
+  .table-shell{
+    flex:1;
+    min-height:0;
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:auto; /* the single scroll container for the table */
+    background:var(--surface);
+    margin-top:16px;
+  }
+  table{
+    border-collapse:separate;
+    border-spacing:0;
+    font-size:13.5px;
+    table-layout:fixed;
+  }
+  thead th{
+    position:sticky; /* freezes the header row while scrolling down; also serves as the containing block for .col-resizer */
+    top:0;
+    background:var(--surface-2);
+    z-index:5;
+    text-align:left;
+    padding:0;
+    border-bottom:1px solid var(--border-strong);
+  }
+  thead th.pinned{
+    z-index:6; /* frozen columns' headers sit above the rest of the header row too, since they're also sticky-left */
+    text-align:left;
+  }
+  thead th button{
+    all:unset;
+    box-sizing:border-box;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    justify-content:flex-start;
+    padding:9px 14px 9px 12px;
+    width:100%;
+    min-width:0;
+    cursor:pointer;
+    font-family:"Public Sans",sans-serif;
+    font-weight:600;
+    font-size:12.5px;
+    letter-spacing:.2px;
+    color:var(--text-muted);
+    white-space:nowrap;
+  }
+  thead th button span{overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1 1 auto;}
+  thead th button:hover{color:var(--text);}
+  thead th button.active{color:var(--accent);}
+  thead th button .arrow{width:9px; height:9px; opacity:0; flex:none;}
+  thead th button.active .arrow{opacity:1;}
+  .col-resizer{
+    position:absolute; top:0; right:-4px; bottom:0; width:8px; cursor:col-resize; z-index:8; touch-action:none;
+  }
+  .col-resizer:hover, .col-resizer.active{background:var(--accent-soft);}
+  thead th[draggable="true"]{cursor:grab;}
+  thead th.dragging{opacity:.4;}
+  thead th.drop-before{box-shadow:inset 3px 0 0 0 var(--accent);}
+  thead th.drop-after{box-shadow:inset -3px 0 0 0 var(--accent);}
+
+  tbody td{
+    padding:8px 12px;
+    border-bottom:1px solid var(--border);
+    white-space:nowrap;
+    text-align:center;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  tbody tr:hover td{background:var(--surface-hover);}
+  thead th.pinned, tbody td.pinned{
+    position:sticky;
+    background:var(--surface);
+  }
+  thead th.pinned{background:var(--surface-2);}
+  tbody td.pinned{text-align:left; z-index:2;}
+  tbody td.pinned-0{font-weight:600;}
+  th.pinned-2, td.pinned-2{border-right:1px solid var(--border);}
+  .player-cell{display:flex; align-items:center; gap:7px; overflow:hidden;}
+  .player-cell input{flex:none;}
+  .player-cell span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
+
+  .team-cell{display:flex; align-items:center; gap:6px; overflow:hidden;}
+  .team-cell img{flex:none; width:16px; height:16px; object-fit:contain;}
+  .team-cell span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0;}
+
+  .fdr-chip{
+    display:inline-block; padding:2px 4px; border-radius:5px;
+    font-size:11px; font-weight:700; letter-spacing:.2px; color:#fff; white-space:nowrap;
+  }
+
+  /* Price Δ % - value above, a center-diverging data bar below (doesn't touch the text) */
+  .pd-cell{display:flex; flex-direction:column; align-items:center; gap:4px; padding:1px 0;}
+  .pd-value{font-family:"IBM Plex Mono",monospace; font-size:12px; font-variant-numeric:tabular-nums; line-height:1;}
+  .pd-track{position:relative; width:44px; height:4px; flex:none; background:var(--border); border-radius:2px; overflow:hidden;}
+  .pd-fill{position:absolute; top:0; bottom:0; border-radius:2px;}
+  .pd-tick{position:absolute; top:0; bottom:0; left:calc(50% - .5px); width:1px; background:var(--surface); opacity:.8;}
+  /* N (fixture/FDR) columns: centered title + content, tight side padding to keep them narrow */
+  td.fdr-cell{padding-left:4px; padding-right:4px;}
+  th.center-head button{justify-content:center; padding-left:6px; padding-right:6px;}
+  th.center-head button span{flex:none;}
+
+  .price-cell{display:inline-flex; align-items:center; gap:4px;}
+  .price-arrow{display:inline-flex; flex-direction:column; align-items:center; font-size:8px; line-height:.85;}
+
+  /* ---- Price (between filter) - sits directly in the toolbar, no popover ---- */
+  .price-inline{
+    display:flex; align-items:center; gap:7px;
+    padding:6px 12px; border-radius:7px; border:1px solid var(--border-strong); background:var(--surface);
+  }
+  .price-inline.active-filter{border-color:var(--accent); background:var(--accent-soft);}
+  .price-inline-label{
+    font-family:"Barlow Condensed",Impact,"Public Sans",sans-serif; font-size:14px; font-weight:600;
+    letter-spacing:.2px; color:var(--text-muted); white-space:nowrap;
+  }
+  .price-inline-dash{color:var(--text-faint); font-size:13px;}
+  .price-num-input{
+    width:52px; padding:4px 6px; border-radius:6px; border:1px solid var(--border-strong);
+    background:var(--surface); color:var(--text); font-family:"IBM Plex Mono",monospace; font-size:12.5px;
+    text-align:center; -moz-appearance:textfield;
+  }
+  .price-num-input::-webkit-outer-spin-button, .price-num-input::-webkit-inner-spin-button{
+    -webkit-appearance:none; margin:0;
+  }
+
+  /* ---- Team View ---- */
+  #teamTable{table-layout:fixed;}
+  #teamTable th:first-child, #teamTable td:first-child{text-align:left;}
+  #teamTable td{padding:7px 10px;}
+  #teamTable td.fdr-cell{padding-left:4px; padding-right:4px;}
+  #teamTable th button{padding:9px 10px; justify-content:center;}
+  #teamTable th button span{flex:none;}
+  tbody tr:hover td.pinned{background:var(--surface-hover);}
+  tbody tr:nth-child(even) td{background:var(--surface-2);}
+  tbody tr:nth-child(even):hover td{background:var(--surface-hover);}
+  tbody tr:nth-child(even) td.pinned{background:var(--surface-2);}
+  tbody tr:nth-child(even):hover td.pinned{background:var(--surface-hover);}
+  tbody tr.selected-row td, tbody tr.selected-row:hover td{background:var(--accent-soft);}
+
+  input[type="checkbox"]{accent-color:var(--accent); cursor:pointer;}
+
+  .status-cell{display:inline-flex; align-items:center; gap:6px; max-width:100%;}
+  .status-cell span:last-child{overflow:hidden; text-overflow:ellipsis;}
+  .status-dot{width:8px; height:8px; border-radius:50%; flex:none;}
+  .pos-cell{
+    display:inline-flex; align-items:center; justify-content:center; max-width:100%;
+    padding:2px 9px 1px; border-radius:999px; border:1.5px solid var(--border-strong);
+    background:transparent; color:var(--text); font-weight:700; font-size:11px; letter-spacing:.3px;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .pos-GK{border-color:var(--gk);}
+  .pos-DEF{border-color:var(--def);}
+  .pos-MID{border-color:var(--mid);}
+  .pos-FWD{border-color:var(--fwd);}
+  .status-a .status-dot{background:var(--accent);}
+  .status-d .status-dot{background:var(--gold);}
+  .status-i .status-dot{background:var(--status-injured);}
+  .status-s .status-dot{background:var(--status-suspended);}
+  .status-u .status-dot{background:var(--text-faint);}
+  /* Status column shows just the raw letter code (A/D/I/S/U) - slightly larger/bolder than the rest of the row. */
+  .status-a, .status-d, .status-i, .status-s, .status-u{font-size:15px; font-weight:700;}
+  .sel-yes .status-dot{background:var(--accent);}
+  .sel-no .status-dot{background:var(--text-faint);}
+
+  .price{color:var(--price);}
+  .muted-cell{color:var(--text-faint);}
+
+  .empty-state{
+    padding:60px 20px; text-align:center; color:var(--text-muted); font-size:14px;
+  }
+
+  @media (prefers-reduced-motion: no-preference){
+    .chip, .btn, thead th button{transition:background-color .12s ease, color .12s ease, border-color .12s ease;}
+  }
+
+  .state-overlay{
+    position:fixed; inset:0; z-index:1000;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--bg); color:var(--text);
+  }
+  .state-box{
+    display:flex; flex-direction:column; align-items:center; gap:12px;
+    font-family:"Public Sans",sans-serif; font-size:15px; text-align:center; max-width:340px; padding:20px;
+  }
+  .state-detail{font-size:13px; color:var(--text-muted);}
+  .spinner{
+    width:28px; height:28px; border-radius:50%;
+    border:3px solid var(--border-strong); border-top-color:var(--accent);
+    animation:spin .8s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce){ .spinner{animation:none; border-top-color:var(--border-strong);} }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div id="loadingOverlay" class="state-overlay">
+  <div class="state-box">
+    <div class="spinner" aria-hidden="true"></div>
+    <div>Loading live FPL data&hellip;</div>
+  </div>
+</div>
+<div id="errorOverlay" class="state-overlay" hidden>
+  <div class="state-box">
+    <div>Couldn&rsquo;t reach the data source.</div>
+    <div class="state-detail" id="errorDetail"></div>
+    <button class="btn primary" id="retryBtn" type="button">Retry</button>
+  </div>
+</div>
+
+<header>
+  <div class="header-text">
+    <span class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="brandRoundedSquare"><rect x="0" y="0" width="512" height="512" rx="108" ry="108"/></clipPath>
+        </defs>
+        <g clip-path="url(#brandRoundedSquare)">
+          <rect x="0" y="0" width="512" height="512" fill="#14171C"/>
+          <line x1="104" y1="180" x2="408" y2="180" stroke="#DC143C" stroke-width="56" stroke-linecap="round"/>
+          <line x1="104" y1="332" x2="408" y2="332" stroke="#00FF00" stroke-width="56" stroke-linecap="round"/>
+          <line x1="180" y1="104" x2="180" y2="408" stroke="#FFD700" stroke-width="56" stroke-linecap="round"/>
+          <line x1="332" y1="104" x2="332" y2="408" stroke="#00CED1" stroke-width="56" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </span>
+    <h1>FPL View</h1>
+  </div>
+  <div class="view-switch" id="viewSwitch" role="group" aria-label="Table view">
+    <button class="view-tab active" id="playerViewBtn" type="button" aria-pressed="true">Player View</button>
+    <button class="view-tab" id="teamViewBtn" type="button" aria-pressed="false">Team View</button>
+  </div>
+  <div class="view-switch" id="menuPosSwitch" role="group" aria-label="Menu bar position">
+    <button class="view-tab active" id="menuPosTopBtn" type="button" aria-pressed="true">Top</button>
+    <button class="view-tab" id="menuPosLeftBtn" type="button" aria-pressed="false">Left</button>
+  </div>
+  <div class="view-switch" id="themeSwitch" role="group" aria-label="Theme">
+    <button class="view-tab" id="themeDarkBtn" type="button" aria-pressed="false">Dark</button>
+    <button class="view-tab" id="themeLightBtn" type="button" aria-pressed="false">Light</button>
+  </div>
+  <div class="header-actions">
+    <div class="col-picker">
+      <button class="btn" id="viewsBtn" aria-expanded="false">View</button>
+      <div class="col-panel" id="viewsPanel" hidden></div>
+    </div>
+    <div class="col-picker">
+      <button class="btn" id="selectionsBtn" aria-expanded="false">Selection</button>
+      <div class="col-panel" id="selectionsPanel" hidden></div>
+    </div>
+    <div class="col-picker">
+      <button class="btn" id="colBtn" aria-expanded="false">Columns</button>
+      <div class="col-panel" id="colPanel" hidden></div>
+    </div>
+    <button class="btn ghost" id="resetBtn">Reset</button>
+    <button class="btn" id="downloadBtn">Download CSV</button>
+    <div class="updated-badge" title="Refreshed automatically every 10 minutes">
+      <span class="updated-dot"></span><span id="updatedText"></span>
+    </div>
+  </div>
+</header>
+
+<div id="bodyRow">
+<div id="leftDock" hidden></div>
+<div id="contentCol">
+
+<div class="toolbar" id="toolbar">
+  <div class="search-box">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input id="search" type="text" placeholder="Search player or club&hellip;" autocomplete="off">
+  </div>
+
+  <label class="select-all-toggle">
+    <input type="checkbox" id="selectAllCheckbox" title="Select all filtered players">
+    <span>Select all</span>
+  </label>
+
+  <button class="btn ghost" id="selectedOnlyBtn" type="button" aria-pressed="false">Selected only</button>
+
+  <div class="chip-group" id="posChips" role="group" aria-label="Filter by position"></div>
+
+  <select id="teamSelect" aria-label="Filter by team"><option value="">All Teams</option></select>
+
+  <div class="col-picker">
+    <button class="btn" id="statusBtn" aria-expanded="false">Status</button>
+    <div class="col-panel" id="statusPanel" hidden></div>
+  </div>
+
+  <div class="col-picker">
+    <button class="btn" id="selectedByBtn" aria-expanded="false">Selected %</button>
+    <div class="col-panel" id="selectedByPanel" hidden></div>
+  </div>
+
+  <div class="price-inline" id="priceInline"></div>
+
+  <div class="col-picker">
+    <button class="btn" id="priceDeltaBtn" aria-expanded="false">Price &Delta; %</button>
+    <div class="col-panel" id="priceDeltaPanel" hidden></div>
+  </div>
+
+  <div class="spacer"></div>
+  <div class="count" id="selectionCount"></div>
+  <div class="count" id="countLabel"></div>
+</div>
+
+<main>
+  <div class="table-shell" id="playerTableShell">
+    <table id="dataTable">
+      <colgroup id="colGroup"></colgroup>
+      <thead><tr id="headRow"></tr></thead>
+      <tbody id="bodyRows"></tbody>
+    </table>
+    <div class="empty-state" id="emptyState" hidden>No players match these filters.</div>
+  </div>
+  <div class="table-shell" id="teamTableShell" hidden>
+    <table id="teamTable">
+      <colgroup id="teamColGroup"></colgroup>
+      <thead><tr id="teamHeadRow"></tr></thead>
+      <tbody id="teamBodyRows"></tbody>
+    </table>
+  </div>
+</main>
+
+</div>
+</div>
+
+<script id="team-logos-data" type="application/json">__TEAM_LOGOS_JSON__</script>
+<script id="supabase-config" type="application/json">__SUPABASE_CONFIG_JSON__</script>
+<script>
+(async function(){
+  "use strict";
+
+  // One-time reset: earlier iterations of this page used different data shapes
+  // for the same localStorage keys. Bump this whenever that shape changes so
+  // stale/incompatible saved state can never wedge the page into a broken view.
+  const SCHEMA_VERSION = "2026-09-04";
+  try{
+    if (localStorage.getItem("pitchLedger.schemaVersion") !== SCHEMA_VERSION){
+      Object.keys(localStorage).forEach(k => { if (k.indexOf("pitchLedger.") === 0) localStorage.removeItem(k); });
+      localStorage.setItem("pitchLedger.schemaVersion", SCHEMA_VERSION);
+    }
+  }catch(e){}
+
+  const loadingOverlay = document.getElementById("loadingOverlay");
+  const errorOverlay = document.getElementById("errorOverlay");
+  const errorDetail = document.getElementById("errorDetail");
+
+  // Reads the two live rows (players, fixtures) from the public.fpl_data table -
+  // written on a schedule by the fetch-fpl-data Edge Function. See README.
+  async function loadRemoteData(){
+    const cfg = JSON.parse(document.getElementById("supabase-config").textContent);
+    const headers = { apikey: cfg.anonKey, Authorization: "Bearer " + cfg.anonKey };
+    const base = cfg.url.replace(/\/+$/, "") + "/rest/v1/fpl_data";
+    const [playersRes, fixturesRes] = await Promise.all([
+      fetch(base + "?key=eq.players&select=payload,updated_at", { headers }),
+      fetch(base + "?key=eq.fixtures&select=payload,updated_at", { headers }),
+    ]);
+    if (!playersRes.ok) throw new Error("players fetch failed (" + playersRes.status + ")");
+    if (!fixturesRes.ok) throw new Error("fixtures fetch failed (" + fixturesRes.status + ")");
+    const playersRows = await playersRes.json();
+    const fixturesRows = await fixturesRes.json();
+    if (!playersRows.length || !fixturesRows.length) throw new Error("no data yet - has the Edge Function run at least once?");
+    return {
+      players: playersRows[0].payload,
+      fixtures: fixturesRows[0].payload,
+      updatedAt: playersRows[0].updated_at,
+    };
+  }
+
+  let REMOTE;
+  try{
+    REMOTE = await loadRemoteData();
+    loadingOverlay.hidden = true;
+  }catch(err){
+    loadingOverlay.hidden = true;
+    errorOverlay.hidden = false;
+    errorDetail.textContent = String((err && err.message) || err);
+    document.getElementById("retryBtn").addEventListener("click", () => location.reload());
+    return; // stop here - nothing below has data to work with
+  }
+
+  try{
+
+  const PLAYERS = REMOTE.players;
+  const TEAM_LOGOS = JSON.parse(document.getElementById('team-logos-data').textContent);
+  const TEAM_FIXTURES = REMOTE.fixtures;
+  PLAYERS.forEach(p => { p.fixtures = TEAM_FIXTURES[p.team_name] || []; });
+  const TEAM_NAMES = Object.keys(TEAM_FIXTURES).sort((a,b) => a.localeCompare(b));
+  const FDR_COLUMN_COUNT = TEAM_NAMES.length ? Math.max(...TEAM_NAMES.map(t => (TEAM_FIXTURES[t] || []).length)) : 0;
+  const PRICES = PLAYERS.map(p => p.player_price).filter(v => typeof v === "number");
+  const PRICE_MIN = PRICES.length ? Math.floor(Math.min(...PRICES) * 10) / 10 : 0;
+  const PRICE_MAX = PRICES.length ? Math.ceil(Math.max(...PRICES) * 10) / 10 : 15;
+
+  const POS_ABBR = {"Goalkeeper":"GK","Defender":"DEF","Midfielder":"MID","Forward":"FWD"};
+  const POS_SORT_ORDER = {"Goalkeeper":1,"Defender":2,"Midfielder":3,"Forward":4};
+  // Full terms - used for the Status filter panel and the cell's hover title.
+  // The table cell itself shows just the raw single-letter code (A/D/I/S/U).
+  const STATUS_DICT = {a:"Available", i:"Injured", u:"Unavailable", d:"Doubtful", s:"Suspended"};
+  const SNAPSHOT_DATE = REMOTE.updatedAt ? REMOTE.updatedAt.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const SNAPSHOT_DATETIME = REMOTE.updatedAt || new Date().toISOString();
+
+  const COLUMN_INFO = {
+    player_name:{group:"Identity",label:"Player"},
+    id:{group:"Identity",label:"ID"}, code:{group:"Identity",label:"Code"},
+    first_name:{group:"Identity",label:"First Name"}, second_name:{group:"Identity",label:"Second Name"},
+    web_name:{group:"Identity",label:"Web Name"}, known_name:{group:"Identity",label:"Known Name"},
+    photo:{group:"Identity",label:"Photo File"}, team:{group:"Identity",label:"Team ID"},
+    team_code:{group:"Identity",label:"Team Code"}, team_name:{group:"Identity",label:"Team"},
+    element_type:{group:"Identity",label:"Position ID"}, player_position:{group:"Identity",label:"Position"},
+    squad_number:{group:"Identity",label:"Squad No."}, opta_code:{group:"Identity",label:"Opta Code"},
+    has_temporary_code:{group:"Identity",label:"Temp Code"}, region:{group:"Identity",label:"Region"},
+    birth_date:{group:"Identity",label:"Birth Date"}, team_join_date:{group:"Identity",label:"Team Joined"},
+
+    fdr_1:{group:"Fixtures",label:"N1"}, fdr_2:{group:"Fixtures",label:"N2"},
+    fdr_3:{group:"Fixtures",label:"N3"}, fdr_4:{group:"Fixtures",label:"N4"},
+    fdr_5:{group:"Fixtures",label:"N5"}, fdr_6:{group:"Fixtures",label:"N6"},
+    fdr_7:{group:"Fixtures",label:"N7"}, fdr_8:{group:"Fixtures",label:"N8"},
+    fdr_9:{group:"Fixtures",label:"N9"}, fdr_10:{group:"Fixtures",label:"N10"},
+
+    status:{group:"Status",label:"Status"}, can_transact:{group:"Status",label:"Transactable"},
+    can_select:{group:"Status",label:"Selectable"}, removed:{group:"Status",label:"Removed"},
+    special:{group:"Status",label:"Special"}, chance_of_playing_this_round:{group:"Status",label:"Chance (This GW)"},
+    chance_of_playing_next_round:{group:"Status",label:"Chance (Next GW)"}, news:{group:"Status",label:"News"},
+    news_added:{group:"Status",label:"News Added"}, in_dreamteam:{group:"Status",label:"In Dreamteam"},
+    dreamteam_count:{group:"Status",label:"Dreamteam Count"},
+
+    now_cost:{group:"Price",label:"Cost (tenths)"}, player_price:{group:"Price",label:"Price (£m)"},
+    cost_change_event:{group:"Price",label:"Cost Δ (GW)"}, cost_change_event_fall:{group:"Price",label:"Cost Δ Fall (GW)"},
+    cost_change_start:{group:"Price",label:"Cost Δ (Season)"}, cost_change_start_fall:{group:"Price",label:"Cost Δ Fall (Season)"},
+    price_change_percent:{group:"Price",label:"Price Δ %"}, price_change_hourly_rate:{group:"Price",label:"Price Δ Rate/hr"},
+    price_change_locked_until:{group:"Price",label:"Price Locked Until"}, price_change_calibrating:{group:"Price",label:"Price Calibrating"},
+    now_cost_rank:{group:"Price",label:"Cost Rank"}, now_cost_rank_type:{group:"Price",label:"Cost Rank (Pos)"},
+
+    selected_by_percent:{group:"Ownership",label:"Selected By %"}, selected_rank:{group:"Ownership",label:"Selected Rank"},
+    selected_rank_type:{group:"Ownership",label:"Selected Rank (Pos)"}, transfers_in:{group:"Ownership",label:"Transfers In"},
+    transfers_in_event:{group:"Ownership",label:"Transfers In (GW)"}, transfers_out:{group:"Ownership",label:"Transfers Out"},
+    transfers_out_event:{group:"Ownership",label:"Transfers Out (GW)"},
+
+    total_points:{group:"Points & Form",label:"Total Points"}, event_points:{group:"Points & Form",label:"GW Points"},
+    points_per_game:{group:"Points & Form",label:"Pts / Game"}, points_per_game_rank:{group:"Points & Form",label:"Pts/Game Rank"},
+    points_per_game_rank_type:{group:"Points & Form",label:"Pts/Game Rank (Pos)"}, form:{group:"Points & Form",label:"Form"},
+    form_rank:{group:"Points & Form",label:"Form Rank"}, form_rank_type:{group:"Points & Form",label:"Form Rank (Pos)"},
+    ep_this:{group:"Points & Form",label:"Exp. Pts (This GW)"}, ep_next:{group:"Points & Form",label:"Exp. Pts (Next GW)"},
+    value_form:{group:"Points & Form",label:"Value (Form)"}, value_season:{group:"Points & Form",label:"Value (Season)"},
+
+    minutes:{group:"Match Stats",label:"Minutes"}, starts:{group:"Match Stats",label:"Starts"},
+    goals_scored:{group:"Match Stats",label:"Goals"}, assists:{group:"Match Stats",label:"Assists"},
+    clean_sheets:{group:"Match Stats",label:"Clean Sheets"}, goals_conceded:{group:"Match Stats",label:"Goals Conceded"},
+    own_goals:{group:"Match Stats",label:"Own Goals"}, penalties_saved:{group:"Match Stats",label:"Pens Saved"},
+    penalties_missed:{group:"Match Stats",label:"Pens Missed"}, yellow_cards:{group:"Match Stats",label:"Yellow Cards"},
+    red_cards:{group:"Match Stats",label:"Red Cards"}, saves:{group:"Match Stats",label:"Saves"},
+    bonus:{group:"Match Stats",label:"Bonus"}, bps:{group:"Match Stats",label:"BPS"},
+
+    clearances_blocks_interceptions:{group:"Defensive",label:"CBI"}, recoveries:{group:"Defensive",label:"Recoveries"},
+    tackles:{group:"Defensive",label:"Tackles"}, defensive_contribution:{group:"Defensive",label:"Def. Contribution"},
+    defensive_contribution_per_90:{group:"Defensive",label:"Def. Contribution (p90)"},
+
+    starts_per_90:{group:"Per 90",label:"Starts (p90)"}, clean_sheets_per_90:{group:"Per 90",label:"Clean Sheets (p90)"},
+    saves_per_90:{group:"Per 90",label:"Saves (p90)"}, goals_conceded_per_90:{group:"Per 90",label:"Goals Conceded (p90)"},
+    expected_goals_per_90:{group:"Per 90",label:"xG (p90)"}, expected_assists_per_90:{group:"Per 90",label:"xA (p90)"},
+    expected_goal_involvements_per_90:{group:"Per 90",label:"xGI (p90)"}, expected_goals_conceded_per_90:{group:"Per 90",label:"xGC (p90)"},
+
+    influence:{group:"ICT Index",label:"Influence"}, influence_rank:{group:"ICT Index",label:"Influence Rank"},
+    influence_rank_type:{group:"ICT Index",label:"Influence Rank (Pos)"}, creativity:{group:"ICT Index",label:"Creativity"},
+    creativity_rank:{group:"ICT Index",label:"Creativity Rank"}, creativity_rank_type:{group:"ICT Index",label:"Creativity Rank (Pos)"},
+    threat:{group:"ICT Index",label:"Threat"}, threat_rank:{group:"ICT Index",label:"Threat Rank"},
+    threat_rank_type:{group:"ICT Index",label:"Threat Rank (Pos)"}, ict_index:{group:"ICT Index",label:"ICT Index"},
+    ict_index_rank:{group:"ICT Index",label:"ICT Index Rank"}, ict_index_rank_type:{group:"ICT Index",label:"ICT Index Rank (Pos)"},
+
+    expected_goals:{group:"Expected Stats",label:"xG"}, expected_assists:{group:"Expected Stats",label:"xA"},
+    expected_goal_involvements:{group:"Expected Stats",label:"xGI"}, expected_goals_conceded:{group:"Expected Stats",label:"xGC"},
+
+    corners_and_indirect_freekicks_order:{group:"Set Pieces",label:"Corners/FK Order"},
+    corners_and_indirect_freekicks_text:{group:"Set Pieces",label:"Corners/FK Note"},
+    direct_freekicks_order:{group:"Set Pieces",label:"Direct FK Order"}, direct_freekicks_text:{group:"Set Pieces",label:"Direct FK Note"},
+    penalties_order:{group:"Set Pieces",label:"Penalties Order"}, penalties_text:{group:"Set Pieces",label:"Penalties Note"},
+
+    scout_news_link:{group:"Scout",label:"Scout News Link"},
+  };
+  const GROUP_ORDER = ["Identity","Fixtures","Status","Price","Ownership","Points & Form","Match Stats","Defensive","Per 90","ICT Index","Expected Stats","Set Pieces","Scout"];
+  const PINNED_KEYS = ["player_name","player_position","team_name"]; // frozen first columns, not togglable/draggable
+  const ALL_KEYS = Object.keys(COLUMN_INFO).filter(k => !PINNED_KEYS.includes(k) && k !== "first_name" && k !== "second_name");
+  const DEFAULT_VISIBLE = ["fdr_1","fdr_2","fdr_3","fdr_4","fdr_5",
+    "player_price","total_points","points_per_game","form",
+    "selected_by_percent","minutes","goals_scored","assists","clean_sheets","bonus","ict_index",
+    "expected_goal_involvements","status"];
+
+  const NUMERIC_KEYS = new Set(PLAYERS.length ? Object.keys(PLAYERS[0]).filter(k => typeof PLAYERS[0][k] === "number") : []);
+  // widen numeric detection: a key is numeric if ANY row has a number for it
+  ALL_KEYS.concat(PINNED_KEYS).forEach(k => {
+    if (NUMERIC_KEYS.has(k)) return;
+    for (const p of PLAYERS){ if (typeof p[k] === "number"){ NUMERIC_KEYS.add(k); break; } }
+  });
+  const BOOL_KEYS = new Set();
+  ALL_KEYS.forEach(k => { for (const p of PLAYERS){ if (typeof p[k] === "boolean"){ BOOL_KEYS.add(k); break; } } });
+
+  function loadState(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    }catch(e){ return fallback; }
+  }
+  function saveState(key, val){
+    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
+  }
+
+  let visibleCols = new Set(loadState("pitchLedger.cols", DEFAULT_VISIBLE));
+  let sortKey = loadState("pitchLedger.sortKey", "total_points");
+  let sortDir = loadState("pitchLedger.sortDir", "desc");
+  let posFilter = new Set(loadState("pitchLedger.pos", []));
+  let teamFilter = loadState("pitchLedger.team", "");
+  let statusFilter = new Set(loadState("pitchLedger.status", []));
+  let selectedByFilter = new Set(loadState("pitchLedger.selectedByBand", []));
+  let priceDeltaFilter = new Set(loadState("pitchLedger.priceDeltaBand", []));
+  const savedPriceRange = loadState("pitchLedger.priceRange", null);
+  let priceFilter = {
+    min: (savedPriceRange && savedPriceRange[0] >= PRICE_MIN) ? savedPriceRange[0] : PRICE_MIN,
+    max: (savedPriceRange && savedPriceRange[1] <= PRICE_MAX) ? savedPriceRange[1] : PRICE_MAX,
+  };
+  let teamSortKey = "team";
+  let teamSortDir = "asc";
+  let searchText = "";
+  let columnWidths = loadState("pitchLedger.colWidths", {});
+  let savedViews = loadState("pitchLedger.savedViews", []);
+  let selectedIds = new Set(loadState("pitchLedger.selectedIds", []));
+  let showSelectedOnly = loadState("pitchLedger.selectedOnly", false);
+  let themeMode = loadState("pitchLedger.theme", "dark"); // "dark" | "light" - dark is the forced default regardless of system preference
+  let menuPosition = loadState("pitchLedger.menuPosition", "top"); // "top" | "left"
+
+  function sanitizeOrder(order){
+    const known = new Set(ALL_KEYS);
+    const clean = Array.isArray(order) ? order.filter(k => known.has(k)) : [];
+    ALL_KEYS.forEach(k => { if (!clean.includes(k)) clean.push(k); });
+    return clean;
+  }
+  let columnOrder = sanitizeOrder(loadState("pitchLedger.colOrder", null));
+
+  function defaultWidth(key){
+    if (key === "player_name") return 108;
+    if (key === "player_position") return 100;
+    if (key === "team_name") return 150;
+    if (key.indexOf("fdr_") === 0) return 54;
+    return NUMERIC_KEYS.has(key) ? 88 : 122;
+  }
+  function widthFor(key){
+    return columnWidths[key] || defaultWidth(key);
+  }
+  function cssEscape(s){
+    return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/"/g, '\\"');
+  }
+
+  // ---------- shared red/orange/yellow/green scale ----------
+  const RAG_RED = "rgb(209,69,61)";
+  const RAG_ORANGE = "rgb(208,122,30)";
+  const RAG_YELLOW = "rgb(181,154,18)";
+  const RAG_GREEN = "rgb(31,161,87)";
+  // Matches the FPL site's own FDR key (green=easy through dark red=hard), read off the reference swatch.
+  const FDR_COLORS = {1:"#375523", 2:"#01FC7A", 3:"#E7E7E7", 4:"#FF1751", 5:"#80072D"};
+  const FDR_TEXT_COLORS = {1:"#FFFFFF", 2:"#0E2113", 3:"#1E1E1E", 4:"#FFFFFF", 5:"#FFFFFF"};
+  function buildFdrChip(f){
+    const chip = document.createElement("span");
+    chip.className = "fdr-chip";
+    chip.style.background = FDR_COLORS[f.fdr] || "var(--text-faint)";
+    chip.style.color = FDR_TEXT_COLORS[f.fdr] || "#fff";
+    chip.textContent = f.opp + " (" + (f.home ? "H" : "A") + ")";
+    chip.title = "GW" + f.gw + " vs " + f.opp + (f.home ? " (Home)" : " (Away)") + " · FDR " + f.fdr;
+    return chip;
+  }
+
+  // ---------- "Chance (Next GW)" color-by-value (smooth gradient) ----------
+  const CHANCE_STOPS = [
+    {p:0, c:[209,69,61]},    // red
+    {p:50, c:[181,154,18]},  // yellow
+    {p:75, c:[208,122,30]},  // orange
+    {p:100, c:[31,161,87]},  // green
+  ];
+  function chanceColor(pct){
+    if (pct === null || pct === undefined) return null;
+    pct = Math.max(0, Math.min(100, Number(pct)));
+    let lo = CHANCE_STOPS[0], hi = CHANCE_STOPS[CHANCE_STOPS.length - 1];
+    for (let i = 0; i < CHANCE_STOPS.length - 1; i++){
+      if (pct >= CHANCE_STOPS[i].p && pct <= CHANCE_STOPS[i+1].p){ lo = CHANCE_STOPS[i]; hi = CHANCE_STOPS[i+1]; break; }
+    }
+    const span = (hi.p - lo.p) || 1;
+    const t = (pct - lo.p) / span;
+    const mix = lo.c.map((v, i) => Math.round(v + (hi.c[i] - v) * t));
+    return "rgb(" + mix.join(",") + ")";
+  }
+
+  // ---------- "Price Δ %" bands - FPL's price-change indicator runs roughly -100..100;
+  // crossing either end means a real price move is imminent, hence the full red/green there. ----------
+  const PRICE_DELTA_BANDS = [
+    {key:"falling", label:"Falling (≤ -100)", color:RAG_RED, test:(v) => v <= -100},
+    {key:"down", label:"Drifting down", color:RAG_ORANGE, test:(v) => v > -100 && v <= 0},
+    {key:"up", label:"Drifting up (0 – 50)", color:RAG_YELLOW, test:(v) => v > 0 && v <= 50},
+    {key:"up_strong", label:"Drifting up (50 – <100)", color:RAG_GREEN, test:(v) => v > 50 && v < 100},
+    {key:"rising", label:"Rising (≥ 100)", color:RAG_GREEN, test:(v) => v >= 100},
+  ];
+  function priceDeltaBand(pct){
+    if (pct === null || pct === undefined) return null;
+    const v = Number(pct);
+    return PRICE_DELTA_BANDS.find(b => b.test(v)) || null;
+  }
+  // Value on top, a small center-diverging data bar underneath - the bar fills toward
+  // red (left of the zero tick) or the band color (right), scaled to the ±100 saturation point.
+  function buildPriceDeltaCell(val){
+    const wrap = document.createElement("div");
+    wrap.className = "pd-cell";
+    const valueEl = document.createElement("div");
+    valueEl.className = "pd-value";
+    valueEl.textContent = formatValue("price_change_percent", val);
+    wrap.appendChild(valueEl);
+
+    const band = priceDeltaBand(val);
+    if (band){
+      valueEl.style.color = band.color;
+      const track = document.createElement("div"); track.className = "pd-track";
+      const tick = document.createElement("div"); tick.className = "pd-tick";
+      const fill = document.createElement("div"); fill.className = "pd-fill";
+      const clamped = Math.max(-100, Math.min(100, Number(val)));
+      const half = Math.abs(clamped) / 100 * 50; // 0..50, half the track per side
+      fill.style.background = band.color;
+      if (clamped >= 0){ fill.style.left = "50%"; fill.style.width = half + "%"; }
+      else { fill.style.left = (50 - half) + "%"; fill.style.width = half + "%"; }
+      track.appendChild(fill);
+      track.appendChild(tick);
+      wrap.appendChild(track);
+    }
+    return wrap;
+  }
+
+  // ---------- "Selected By %" bands, used for both font color and the filter ----------
+  const SELECTED_BY_BANDS = [
+    {key:"band0", label:"0 – <10%", color:RAG_RED, test:(v) => v >= 0 && v < 10},
+    {key:"band1", label:"10 – <20%", color:RAG_ORANGE, test:(v) => v >= 10 && v < 20},
+    {key:"band2", label:"20 – <30%", color:RAG_YELLOW, test:(v) => v >= 20 && v < 30},
+    {key:"band3", label:"30%+", color:RAG_GREEN, test:(v) => v >= 30},
+  ];
+  function selectedByBand(pct){
+    if (pct === null || pct === undefined) return null;
+    const v = Number(pct);
+    return SELECTED_BY_BANDS.find(b => b.test(v)) || null;
+  }
+
+  // ---------- formatting ----------
+  function formatValue(key, val){
+    if (val === null || val === undefined || val === "") return "–";
+    if (key === "player_price") return "£" + Number(val).toFixed(1) + "m";
+    if (key === "cost_change_event_fall"){
+      // FPL reports this as a positive tenths-of-a-million "fall" amount; flip the
+      // sign so it reads like a price delta (a pending fall shows as negative).
+      const n = -(Number(val) / 10);
+      if (n === 0) return "–";
+      return (n > 0 ? "+" : "") + n.toFixed(1);
+    }
+    if (key === "selected_by_percent" || key === "price_change_percent") return Number(val).toFixed(1) + "%";
+    if (key === "chance_of_playing_this_round" || key === "chance_of_playing_next_round") return Math.round(val) + "%";
+    if (key === "news_added" || key === "price_change_locked_until") return String(val).slice(0,10);
+    if (key === "status") return STATUS_DICT[val] || val;
+    if (BOOL_KEYS.has(key)) return val ? "Yes" : "No";
+    if (typeof val === "number"){
+      if (Number.isInteger(val)) return val.toLocaleString("en-GB");
+      return val.toLocaleString("en-GB", {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+    return String(val);
+  }
+
+  function isNullish(v){ return v === null || v === undefined || v === ""; }
+
+  // fdr_1..fdr_5 aren't real player fields - they're the Nth upcoming fixture for the player's team.
+  function sortableValue(p, key){
+    if (key.indexOf("fdr_") === 0){
+      const idx = parseInt(key.slice(4), 10) - 1;
+      const f = p.fixtures && p.fixtures[idx];
+      return f ? f.fdr : null;
+    }
+    if (key === "player_position"){
+      return POS_SORT_ORDER[p.player_position] || null; // GK, DEF, MID, FWD - not alphabetical
+    }
+    return p[key];
+  }
+
+  function compareRows(a, b, key, dir){
+    const av = sortableValue(a, key), bv = sortableValue(b, key);
+    const an = isNullish(av), bn = isNullish(bv);
+    if (an && bn) return 0;
+    if (an) return 1;
+    if (bn) return -1;
+    let cmp;
+    if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
+    else if (typeof av === "boolean") cmp = av === bv ? 0 : (av ? -1 : 1);
+    else cmp = String(av).localeCompare(String(bv), undefined, {numeric:true, sensitivity:"base"});
+    return dir === "asc" ? cmp : -cmp;
+  }
+
+  // ---------- build static UI: position chips + team select + column panel ----------
+  const posChipsEl = document.getElementById("posChips");
+  ["Goalkeeper","Defender","Midfielder","Forward"].forEach(pos => {
+    const b = document.createElement("button");
+    b.className = "chip chip-" + POS_ABBR[pos]; b.type = "button"; b.textContent = POS_ABBR[pos];
+    b.setAttribute("aria-pressed", posFilter.has(pos) ? "true" : "false");
+    b.addEventListener("click", () => {
+      if (posFilter.has(pos)) posFilter.delete(pos); else posFilter.add(pos);
+      b.setAttribute("aria-pressed", posFilter.has(pos) ? "true" : "false");
+      saveState("pitchLedger.pos", Array.from(posFilter));
+      render();
+    });
+    posChipsEl.appendChild(b);
+  });
+
+  const teamSelectEl = document.getElementById("teamSelect");
+  const teamNames = Array.from(new Set(PLAYERS.map(p => p.team_name).filter(Boolean))).sort();
+  teamNames.forEach(t => {
+    const o = document.createElement("option"); o.value = t; o.textContent = t;
+    teamSelectEl.appendChild(o);
+  });
+  teamSelectEl.value = teamFilter;
+  function updateTeamSelectHighlight(){
+    teamSelectEl.classList.toggle("active-filter", Boolean(teamFilter));
+  }
+  updateTeamSelectHighlight();
+  teamSelectEl.addEventListener("change", () => {
+    teamFilter = teamSelectEl.value;
+    saveState("pitchLedger.team", teamFilter);
+    updateTeamSelectHighlight();
+    render();
+  });
+
+  const STATUS_CODES = Array.from(new Set(PLAYERS.map(p => p.status).filter(Boolean))).sort();
+  const statusPanel = document.getElementById("statusPanel");
+  const statusBtn = document.getElementById("statusBtn");
+  function buildStatusPanel(){
+    statusPanel.innerHTML = "";
+    const actions = document.createElement("div");
+    actions.className = "col-panel-actions";
+    const mkBtn = (label, fn) => { const b = document.createElement("button"); b.type="button"; b.textContent = label; b.addEventListener("click", fn); return b; };
+    actions.appendChild(mkBtn("All", () => { statusFilter = new Set(STATUS_CODES); afterStatusChange(); }));
+    actions.appendChild(mkBtn("None", () => { statusFilter = new Set(); afterStatusChange(); }));
+    statusPanel.appendChild(actions);
+
+    STATUS_CODES.forEach(code => {
+      const row = document.createElement("label"); row.className = "col-row";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = statusFilter.has(code);
+      cb.addEventListener("change", () => {
+        if (cb.checked) statusFilter.add(code); else statusFilter.delete(code);
+        afterStatusChange();
+      });
+      row.appendChild(cb);
+      const chip = document.createElement("span"); chip.className = "status-cell status-" + code;
+      const dot = document.createElement("span"); dot.className = "status-dot";
+      chip.appendChild(dot);
+      chip.appendChild(document.createTextNode(STATUS_DICT[code] || code));
+      row.appendChild(chip);
+      statusPanel.appendChild(row);
+    });
+  }
+  function afterStatusChange(){
+    saveState("pitchLedger.status", Array.from(statusFilter));
+    buildStatusPanel();
+    updateStatusBtnLabel();
+    render();
+  }
+  function updateStatusBtnLabel(){
+    const active = statusFilter.size && statusFilter.size < STATUS_CODES.length;
+    statusBtn.textContent = active ? "Status (" + statusFilter.size + ")" : "Status";
+    statusBtn.classList.toggle("active-filter", Boolean(active));
+  }
+  statusBtn.addEventListener("click", () => {
+    const open = statusPanel.hasAttribute("hidden");
+    closeAllPanels();
+    if (open){ positionFlyout(statusPanel, statusBtn); statusPanel.removeAttribute("hidden"); statusBtn.setAttribute("aria-expanded","true"); }
+  });
+
+  const selectedByPanel = document.getElementById("selectedByPanel");
+  const selectedByBtn = document.getElementById("selectedByBtn");
+  function buildSelectedByPanel(){
+    selectedByPanel.innerHTML = "";
+    const actions = document.createElement("div");
+    actions.className = "col-panel-actions";
+    const mkBtn = (label, fn) => { const b = document.createElement("button"); b.type="button"; b.textContent = label; b.addEventListener("click", fn); return b; };
+    actions.appendChild(mkBtn("All", () => { selectedByFilter = new Set(SELECTED_BY_BANDS.map(b => b.key)); afterSelectedByChange(); }));
+    actions.appendChild(mkBtn("None", () => { selectedByFilter = new Set(); afterSelectedByChange(); }));
+    selectedByPanel.appendChild(actions);
+
+    SELECTED_BY_BANDS.forEach(band => {
+      const row = document.createElement("label"); row.className = "col-row";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = selectedByFilter.has(band.key);
+      cb.addEventListener("change", () => {
+        if (cb.checked) selectedByFilter.add(band.key); else selectedByFilter.delete(band.key);
+        afterSelectedByChange();
+      });
+      row.appendChild(cb);
+      const chip = document.createElement("span"); chip.className = "status-cell";
+      const dot = document.createElement("span"); dot.className = "status-dot"; dot.style.background = band.color;
+      chip.appendChild(dot);
+      chip.appendChild(document.createTextNode(band.label));
+      row.appendChild(chip);
+      selectedByPanel.appendChild(row);
+    });
+  }
+  function afterSelectedByChange(){
+    saveState("pitchLedger.selectedByBand", Array.from(selectedByFilter));
+    buildSelectedByPanel();
+    updateSelectedByBtnLabel();
+    render();
+  }
+  function updateSelectedByBtnLabel(){
+    const active = selectedByFilter.size && selectedByFilter.size < SELECTED_BY_BANDS.length;
+    selectedByBtn.textContent = active ? "Selected % (" + selectedByFilter.size + ")" : "Selected %";
+    selectedByBtn.classList.toggle("active-filter", Boolean(active));
+  }
+  selectedByBtn.addEventListener("click", () => {
+    const open = selectedByPanel.hasAttribute("hidden");
+    closeAllPanels();
+    if (open){ positionFlyout(selectedByPanel, selectedByBtn); selectedByPanel.removeAttribute("hidden"); selectedByBtn.setAttribute("aria-expanded","true"); }
+  });
+
+  // ---------- Price (between filter, inline in the toolbar - two plain number fields) ----------
+  const priceInline = document.getElementById("priceInline");
+  function buildPriceInline(){
+    priceInline.innerHTML = "";
+
+    const label = document.createElement("span"); label.className = "price-inline-label"; label.textContent = "Price";
+    priceInline.appendChild(label);
+
+    const minInput = document.createElement("input");
+    minInput.type = "number"; minInput.className = "price-num-input";
+    minInput.min = PRICE_MIN; minInput.max = PRICE_MAX; minInput.step = "0.1"; minInput.value = priceFilter.min.toFixed(1);
+    minInput.setAttribute("aria-label", "Minimum price (£m)");
+    priceInline.appendChild(minInput);
+
+    const dash = document.createElement("span"); dash.className = "price-inline-dash"; dash.textContent = "–";
+    priceInline.appendChild(dash);
+
+    const maxInput = document.createElement("input");
+    maxInput.type = "number"; maxInput.className = "price-num-input";
+    maxInput.min = PRICE_MIN; maxInput.max = PRICE_MAX; maxInput.step = "0.1"; maxInput.value = priceFilter.max.toFixed(1);
+    maxInput.setAttribute("aria-label", "Maximum price (£m)");
+    priceInline.appendChild(maxInput);
+
+    const unit = document.createElement("span"); unit.className = "price-inline-label"; unit.textContent = "£m";
+    priceInline.appendChild(unit);
+
+    function syncActive(){
+      priceInline.classList.toggle("active-filter", priceFilter.min > PRICE_MIN || priceFilter.max < PRICE_MAX);
+    }
+    function commit(){
+      saveState("pitchLedger.priceRange", [priceFilter.min, priceFilter.max]);
+      syncActive();
+      render();
+    }
+    minInput.addEventListener("change", () => {
+      let v = parseFloat(minInput.value);
+      if (isNaN(v)) v = PRICE_MIN;
+      v = Math.min(Math.max(v, PRICE_MIN), priceFilter.max);
+      minInput.value = v.toFixed(1); priceFilter.min = v; commit();
+    });
+    maxInput.addEventListener("change", () => {
+      let v = parseFloat(maxInput.value);
+      if (isNaN(v)) v = PRICE_MAX;
+      v = Math.max(Math.min(v, PRICE_MAX), priceFilter.min);
+      maxInput.value = v.toFixed(1); priceFilter.max = v; commit();
+    });
+    syncActive();
+  }
+
+  // ---------- Price Δ (banded filter, same pattern as Selected %) ----------
+  const priceDeltaPanel = document.getElementById("priceDeltaPanel");
+  const priceDeltaBtn = document.getElementById("priceDeltaBtn");
+  function buildPriceDeltaPanel(){
+    priceDeltaPanel.innerHTML = "";
+    const actions = document.createElement("div");
+    actions.className = "col-panel-actions";
+    const mkBtn = (label, fn) => { const b = document.createElement("button"); b.type="button"; b.textContent = label; b.addEventListener("click", fn); return b; };
+    actions.appendChild(mkBtn("All", () => { priceDeltaFilter = new Set(PRICE_DELTA_BANDS.map(b => b.key)); afterPriceDeltaChange(); }));
+    actions.appendChild(mkBtn("None", () => { priceDeltaFilter = new Set(); afterPriceDeltaChange(); }));
+    priceDeltaPanel.appendChild(actions);
+
+    PRICE_DELTA_BANDS.forEach(band => {
+      const row = document.createElement("label"); row.className = "col-row";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = priceDeltaFilter.has(band.key);
+      cb.addEventListener("change", () => {
+        if (cb.checked) priceDeltaFilter.add(band.key); else priceDeltaFilter.delete(band.key);
+        afterPriceDeltaChange();
+      });
+      row.appendChild(cb);
+      const chip = document.createElement("span"); chip.className = "status-cell";
+      const dot = document.createElement("span"); dot.className = "status-dot"; dot.style.background = band.color;
+      chip.appendChild(dot);
+      chip.appendChild(document.createTextNode(band.label));
+      row.appendChild(chip);
+      priceDeltaPanel.appendChild(row);
+    });
+  }
+  function afterPriceDeltaChange(){
+    saveState("pitchLedger.priceDeltaBand", Array.from(priceDeltaFilter));
+    buildPriceDeltaPanel();
+    updatePriceDeltaBtnLabel();
+    render();
+  }
+  function updatePriceDeltaBtnLabel(){
+    const active = priceDeltaFilter.size && priceDeltaFilter.size < PRICE_DELTA_BANDS.length;
+    priceDeltaBtn.textContent = active ? "Price Δ % (" + priceDeltaFilter.size + ")" : "Price Δ %";
+    priceDeltaBtn.classList.toggle("active-filter", Boolean(active));
+  }
+  priceDeltaBtn.addEventListener("click", () => {
+    const open = priceDeltaPanel.hasAttribute("hidden");
+    closeAllPanels();
+    if (open){ positionFlyout(priceDeltaPanel, priceDeltaBtn); priceDeltaPanel.removeAttribute("hidden"); priceDeltaBtn.setAttribute("aria-expanded","true"); }
+  });
+
+  const colPanel = document.getElementById("colPanel");
+  const colBtn = document.getElementById("colBtn");
+  function buildColPanel(){
+    colPanel.innerHTML = "";
+    const actions = document.createElement("div");
+    actions.className = "col-panel-actions";
+    const mkBtn = (label, fn) => { const b = document.createElement("button"); b.type="button"; b.textContent = label; b.addEventListener("click", fn); return b; };
+    actions.appendChild(mkBtn("Default", () => { visibleCols = new Set(DEFAULT_VISIBLE); afterColChange(); }));
+    actions.appendChild(mkBtn("All", () => { visibleCols = new Set(ALL_KEYS); afterColChange(); }));
+    actions.appendChild(mkBtn("None", () => { visibleCols = new Set(); afterColChange(); }));
+    colPanel.appendChild(actions);
+
+    GROUP_ORDER.forEach(group => {
+      const keys = ALL_KEYS.filter(k => COLUMN_INFO[k].group === group);
+      if (!keys.length) return;
+      const wrap = document.createElement("div"); wrap.className = "col-group";
+      const h = document.createElement("h3");
+      const span = document.createElement("span"); span.textContent = group;
+      h.appendChild(span);
+      wrap.appendChild(h);
+      keys.forEach(k => {
+        const row = document.createElement("label"); row.className = "col-row";
+        const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = visibleCols.has(k);
+        cb.addEventListener("change", () => {
+          if (cb.checked) visibleCols.add(k); else visibleCols.delete(k);
+          afterColChange();
+        });
+        row.appendChild(cb);
+        const txt = document.createElement("span"); txt.textContent = COLUMN_INFO[k].label;
+        row.appendChild(txt);
+        wrap.appendChild(row);
+      });
+      colPanel.appendChild(wrap);
+    });
+  }
+  function afterColChange(){
+    saveState("pitchLedger.cols", Array.from(visibleCols));
+    buildColPanel();
+    buildHead();
+    render();
+    updateColBtnLabel();
+  }
+  function updateColBtnLabel(){
+    colBtn.textContent = "Columns (" + visibleCols.size + "/" + ALL_KEYS.length + ")";
+  }
+  colBtn.addEventListener("click", () => {
+    const open = colPanel.hasAttribute("hidden");
+    closeAllPanels();
+    if (open){ colPanel.removeAttribute("hidden"); colBtn.setAttribute("aria-expanded","true"); }
+  });
+  function allPanelPairs(){
+    return [[colPanel,colBtn],[statusPanel,statusBtn],[selectedByPanel,selectedByBtn],
+      [priceDeltaPanel,priceDeltaBtn],
+      [document.getElementById("viewsPanel"),document.getElementById("viewsBtn")],
+      [document.getElementById("selectionsPanel"),document.getElementById("selectionsBtn")]];
+  }
+  function closeAllPanels(){
+    allPanelPairs().forEach(([panel,btn]) => {
+      panel.setAttribute("hidden",""); btn.setAttribute("aria-expanded","false");
+    });
+  }
+  // Panels living inside the toolbar (Status / Selected % / Price Δ %) are
+  // position:absolute against their own button - fine in the header, but
+  // when that toolbar is docked in the narrow #leftDock sidebar, an
+  // absolutely-positioned 420px panel both gets clipped by the sidebar's
+  // own scroll box AND forces it to scroll horizontally. Fix: while docked
+  // left, switch that one panel to position:fixed, placed from the button's
+  // real screen position - escapes the sidebar's clipping/scroll entirely.
+  function positionFlyout(panel, btn){
+    const dockedLeft = document.getElementById("leftDock").contains(btn);
+    if (dockedLeft){
+      const rect = btn.getBoundingClientRect();
+      panel.style.position = "fixed";
+      panel.style.left = Math.round(rect.right + 8) + "px";
+      panel.style.top = Math.round(rect.top) + "px";
+      panel.style.right = "auto";
+    } else {
+      panel.style.position = "";
+      panel.style.left = "";
+      panel.style.top = "";
+      panel.style.right = "";
+    }
+  }
+  document.addEventListener("click", (e) => {
+    allPanelPairs().forEach(([panel,btn]) => {
+      if (!panel.contains(e.target) && e.target !== btn && !panel.hasAttribute("hidden")){
+        panel.setAttribute("hidden",""); btn.setAttribute("aria-expanded","false");
+      }
+    });
+  });
+
+  // ---------- menu bar position (top / left) + theme (dark / light) ----------
+  // Both are plain always-visible tab switches in the header, styled and
+  // behaving just like the Player View / Team View switch above them.
+  const menuToolbarEl = document.getElementById("toolbar");
+  const leftDock = document.getElementById("leftDock");
+  const contentCol = document.getElementById("contentCol");
+  const mainEl = document.querySelector("main");
+  const menuPosTopBtn = document.getElementById("menuPosTopBtn");
+  const menuPosLeftBtn = document.getElementById("menuPosLeftBtn");
+  const themeDarkBtn = document.getElementById("themeDarkBtn");
+  const themeLightBtn = document.getElementById("themeLightBtn");
+
+  function applyMenuPosition(){
+    if (menuPosition === "left"){
+      leftDock.hidden = false;
+      leftDock.appendChild(menuToolbarEl);
+    } else {
+      leftDock.hidden = true;
+      contentCol.insertBefore(menuToolbarEl, mainEl);
+    }
+    menuPosTopBtn.classList.toggle("active", menuPosition === "top");
+    menuPosTopBtn.setAttribute("aria-pressed", String(menuPosition === "top"));
+    menuPosLeftBtn.classList.toggle("active", menuPosition === "left");
+    menuPosLeftBtn.setAttribute("aria-pressed", String(menuPosition === "left"));
+  }
+  function applyTheme(){
+    // Scoped to body (not documentElement) so this never fights the claude.ai
+    // viewer's own theme, which only ever touches the outer :root/html element.
+    document.body.setAttribute("data-theme", themeMode);
+    themeDarkBtn.classList.toggle("active", themeMode === "dark");
+    themeDarkBtn.setAttribute("aria-pressed", String(themeMode === "dark"));
+    themeLightBtn.classList.toggle("active", themeMode === "light");
+    themeLightBtn.setAttribute("aria-pressed", String(themeMode === "light"));
+  }
+  menuPosTopBtn.addEventListener("click", () => { menuPosition = "top"; saveState("pitchLedger.menuPosition", menuPosition); applyMenuPosition(); });
+  menuPosLeftBtn.addEventListener("click", () => { menuPosition = "left"; saveState("pitchLedger.menuPosition", menuPosition); applyMenuPosition(); });
+  themeDarkBtn.addEventListener("click", () => { themeMode = "dark"; saveState("pitchLedger.theme", themeMode); applyTheme(); });
+  themeLightBtn.addEventListener("click", () => { themeMode = "light"; saveState("pitchLedger.theme", themeMode); applyTheme(); });
+
+  document.getElementById("search").addEventListener("input", (e) => {
+    searchText = e.target.value.trim().toLowerCase();
+    render();
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    visibleCols = new Set(DEFAULT_VISIBLE);
+    sortKey = "total_points"; sortDir = "desc";
+    posFilter = new Set(); teamFilter = ""; statusFilter = new Set(); selectedByFilter = new Set();
+    priceFilter = { min: PRICE_MIN, max: PRICE_MAX }; priceDeltaFilter = new Set();
+    showSelectedOnly = false;
+    columnWidths = {}; columnOrder = ALL_KEYS.slice();
+    searchText = ""; document.getElementById("search").value = "";
+    teamSelectEl.value = "";
+    updateTeamSelectHighlight();
+    posChipsEl.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed","false"));
+    ["pitchLedger.cols","pitchLedger.sortKey","pitchLedger.sortDir","pitchLedger.pos","pitchLedger.team","pitchLedger.status","pitchLedger.selectedByBand","pitchLedger.priceRange","pitchLedger.priceDeltaBand","pitchLedger.selectedOnly","pitchLedger.colWidths","pitchLedger.colOrder"].forEach(k => {
+      try{ localStorage.removeItem(k); }catch(e){}
+    });
+    buildColPanel(); buildStatusPanel(); buildSelectedByPanel(); buildPriceInline(); buildPriceDeltaPanel(); buildHead(); render();
+    updateColBtnLabel(); updateStatusBtnLabel(); updateSelectedByBtnLabel(); updatePriceDeltaBtnLabel(); updateSelectedOnlyBtn();
+  });
+
+  document.getElementById("selectAllCheckbox").addEventListener("change", (e) => {
+    const rows = getFilteredSortedRows();
+    if (e.target.checked) rows.forEach(p => selectedIds.add(p.id));
+    else rows.forEach(p => selectedIds.delete(p.id));
+    saveState("pitchLedger.selectedIds", Array.from(selectedIds));
+    render();
+  });
+
+  const selectedOnlyBtn = document.getElementById("selectedOnlyBtn");
+  function updateSelectedOnlyBtn(){
+    selectedOnlyBtn.textContent = selectedIds.size ? "Selected only (" + selectedIds.size + ")" : "Selected only";
+    selectedOnlyBtn.setAttribute("aria-pressed", String(showSelectedOnly));
+    selectedOnlyBtn.classList.toggle("active-filter", showSelectedOnly);
+  }
+  selectedOnlyBtn.addEventListener("click", () => {
+    showSelectedOnly = !showSelectedOnly;
+    saveState("pitchLedger.selectedOnly", showSelectedOnly);
+    updateSelectedOnlyBtn();
+    render();
+  });
+  updateSelectedOnlyBtn();
+
+  // ---------- table head ----------
+  const headRow = document.getElementById("headRow");
+  const colGroupEl = document.getElementById("colGroup");
+  const tableEl = document.getElementById("dataTable");
+  function orderedVisible(){
+    return columnOrder.filter(k => visibleCols.has(k));
+  }
+  function buildHead(){
+    headRow.innerHTML = "";
+
+    PINNED_KEYS.forEach((k, i) => {
+      const th = document.createElement("th");
+      th.className = "pinned pinned-" + i;
+      th.appendChild(headerButton(k, COLUMN_INFO[k].label));
+      attachResizer(th, k);
+      headRow.appendChild(th);
+    });
+
+    orderedVisible().forEach(k => {
+      const th = document.createElement("th");
+      if (k.indexOf("fdr_") === 0) th.className = "center-head";
+      th.appendChild(headerButton(k, COLUMN_INFO[k].label));
+      attachResizer(th, k);
+      attachDragReorder(th, k);
+      headRow.appendChild(th);
+    });
+    buildColGroup();
+  }
+  let dragKey = null;
+  function attachDragReorder(th, key){
+    th.draggable = true;
+    th.addEventListener("dragstart", (e) => {
+      dragKey = key;
+      th.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      try{ e.dataTransfer.setData("text/plain", key); }catch(err){}
+    });
+    th.addEventListener("dragend", () => {
+      th.classList.remove("dragging");
+      headRow.querySelectorAll(".drop-before,.drop-after").forEach(el => el.classList.remove("drop-before","drop-after"));
+      dragKey = null;
+    });
+    th.addEventListener("dragover", (e) => {
+      if (!dragKey || dragKey === key) return;
+      e.preventDefault();
+      const rect = th.getBoundingClientRect();
+      const before = (e.clientX - rect.left) < rect.width / 2;
+      th.classList.toggle("drop-before", before);
+      th.classList.toggle("drop-after", !before);
+    });
+    th.addEventListener("dragleave", () => {
+      th.classList.remove("drop-before","drop-after");
+    });
+    th.addEventListener("drop", (e) => {
+      e.preventDefault();
+      th.classList.remove("drop-before","drop-after");
+      if (!dragKey || dragKey === key) return;
+      const rect = th.getBoundingClientRect();
+      const before = (e.clientX - rect.left) < rect.width / 2;
+      const fromKey = dragKey;
+      dragKey = null;
+      const idxFrom = columnOrder.indexOf(fromKey);
+      if (idxFrom === -1) return;
+      columnOrder.splice(idxFrom, 1);
+      let idxTo = columnOrder.indexOf(key);
+      if (idxTo === -1) idxTo = columnOrder.length;
+      columnOrder.splice(before ? idxTo : idxTo + 1, 0, fromKey);
+      saveState("pitchLedger.colOrder", columnOrder);
+      buildHead(); render();
+    });
+  }
+  function buildColGroup(){
+    colGroupEl.innerHTML = "";
+    PINNED_KEYS.concat(orderedVisible()).forEach(k => {
+      const col = document.createElement("col");
+      col.dataset.col = k;
+      col.style.width = widthFor(k) + "px";
+      colGroupEl.appendChild(col);
+    });
+    syncTableWidth();
+  }
+  function syncTableWidth(){
+    let total = 0;
+    colGroupEl.querySelectorAll("col").forEach(c => { total += parseInt(c.style.width, 10) || 0; });
+    tableEl.style.width = total + "px";
+  }
+  // Sets `left` directly on every rendered pinned cell (header + body) rather than
+  // relying on a second injected stylesheet, which the publish pipeline isn't guaranteed to preserve.
+  function reflowPinnedOffsets(){
+    let offset = 0;
+    PINNED_KEYS.forEach((k, i) => {
+      const px = offset + "px";
+      document.querySelectorAll(".pinned-" + i).forEach(el => { el.style.left = px; });
+      offset += widthFor(k);
+    });
+  }
+  function attachResizer(th, key){
+    const handle = document.createElement("div");
+    handle.className = "col-resizer";
+    handle.draggable = false;
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const col = colGroupEl.querySelector('col[data-col="' + cssEscape(key) + '"]');
+      if (!col) return;
+      handle.setPointerCapture(e.pointerId);
+      const startX = e.clientX;
+      const startWidth = parseInt(col.style.width, 10) || defaultWidth(key);
+      const minW = PINNED_KEYS.includes(key) ? 70 : 52;
+      const maxW = 420;
+      handle.classList.add("active");
+      function onMove(ev){
+        const w = Math.min(maxW, Math.max(minW, Math.round(startWidth + (ev.clientX - startX))));
+        col.style.width = w + "px";
+        syncTableWidth();
+      }
+      function onUp(ev){
+        handle.releasePointerCapture(e.pointerId);
+        handle.classList.remove("active");
+        columnWidths[key] = parseInt(col.style.width, 10);
+        saveState("pitchLedger.colWidths", columnWidths);
+        if (PINNED_KEYS.includes(key)) reflowPinnedOffsets();
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+      }
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp);
+    });
+    th.appendChild(handle);
+  }
+  function headerButton(key, label){
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.title = label; // full title on hover, in case the column is narrower than its label
+    const isActive = sortKey === key;
+    if (isActive) btn.classList.add("active");
+    const arrow = document.createElementNS("http://www.w3.org/2000/svg","svg");
+    arrow.setAttribute("viewBox","0 0 12 12"); arrow.setAttribute("class","arrow"); arrow.setAttribute("fill","currentColor");
+    const dirNow = isActive ? sortDir : "desc";
+    arrow.innerHTML = dirNow === "asc" ? '<path d="M6 3 L10 9 L2 9 Z"/>' : '<path d="M6 9 L2 3 L10 3 Z"/>';
+    const span = document.createElement("span"); span.textContent = label;
+    btn.appendChild(span); btn.appendChild(arrow);
+    btn.addEventListener("click", () => {
+      if (sortKey === key){ sortDir = sortDir === "asc" ? "desc" : "asc"; }
+      else { sortKey = key; sortDir = NUMERIC_KEYS.has(key) ? "desc" : "asc"; }
+      saveState("pitchLedger.sortKey", sortKey); saveState("pitchLedger.sortDir", sortDir);
+      buildHead(); render();
+    });
+    return btn;
+  }
+
+  // ---------- table body ----------
+  const bodyRows = document.getElementById("bodyRows");
+  const countLabel = document.getElementById("countLabel");
+  const emptyState = document.getElementById("emptyState");
+
+  function getFilteredSortedRows(){
+    let rows = PLAYERS;
+    if (showSelectedOnly){
+      rows = rows.filter(p => selectedIds.has(p.id));
+    }
+    if (searchText){
+      rows = rows.filter(p =>
+        (p.player_name && p.player_name.toLowerCase().includes(searchText)) ||
+        (p.web_name && p.web_name.toLowerCase().includes(searchText)) ||
+        (p.team_name && p.team_name.toLowerCase().includes(searchText))
+      );
+    }
+    if (posFilter.size){
+      rows = rows.filter(p => posFilter.has(p.player_position));
+    }
+    if (teamFilter){
+      rows = rows.filter(p => p.team_name === teamFilter);
+    }
+    if (statusFilter.size){
+      rows = rows.filter(p => statusFilter.has(p.status));
+    }
+    if (selectedByFilter.size){
+      rows = rows.filter(p => {
+        const band = selectedByBand(p.selected_by_percent);
+        return band && selectedByFilter.has(band.key);
+      });
+    }
+    if (priceFilter.min > PRICE_MIN || priceFilter.max < PRICE_MAX){
+      rows = rows.filter(p => typeof p.player_price === "number" && p.player_price >= priceFilter.min && p.player_price <= priceFilter.max);
+    }
+    if (priceDeltaFilter.size){
+      rows = rows.filter(p => {
+        const band = priceDeltaBand(p.price_change_percent);
+        return band && priceDeltaFilter.has(band.key);
+      });
+    }
+    return rows.slice().sort((a,b) => compareRows(a,b,sortKey,sortDir));
+  }
+
+  function updateSelectionCount(){
+    const n = selectedIds.size;
+    document.getElementById("selectionCount").textContent = n ? n.toLocaleString("en-GB") + " selected" : "";
+  }
+
+  function render(){
+    const rows = getFilteredSortedRows();
+    countLabel.innerHTML = "Showing <b>" + rows.length.toLocaleString("en-GB") + "</b> of " + PLAYERS.length.toLocaleString("en-GB") + " players";
+
+    const selectAllCb = document.getElementById("selectAllCheckbox");
+    if (selectAllCb){
+      const allSelected = rows.length > 0 && rows.every(p => selectedIds.has(p.id));
+      const someSelected = rows.some(p => selectedIds.has(p.id));
+      selectAllCb.checked = allSelected;
+      selectAllCb.indeterminate = someSelected && !allSelected;
+    }
+    updateSelectionCount();
+    updateSelectedOnlyBtn();
+
+    const cols = orderedVisible();
+    const frag = document.createDocumentFragment();
+    rows.forEach(p => {
+      const tr = document.createElement("tr");
+      if (selectedIds.has(p.id)) tr.classList.add("selected-row");
+
+      const td0 = document.createElement("td");
+      td0.className = "pinned pinned-0";
+      td0.title = p.web_name && p.web_name !== p.player_name ? p.player_name + " (" + p.web_name + ")" : (p.player_name || "");
+      const cell = document.createElement("div"); cell.className = "player-cell";
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = selectedIds.has(p.id);
+      cb.addEventListener("change", () => {
+        if (cb.checked) selectedIds.add(p.id); else selectedIds.delete(p.id);
+        saveState("pitchLedger.selectedIds", Array.from(selectedIds));
+        render();
+      });
+      const nameSpan = document.createElement("span"); nameSpan.textContent = p.player_name || "–";
+      cell.appendChild(cb); cell.appendChild(nameSpan);
+      td0.appendChild(cell);
+      tr.appendChild(td0);
+
+      const tdPos = document.createElement("td");
+      tdPos.className = "pinned pinned-1";
+      if (p.player_position){
+        const posChip = document.createElement("span");
+        posChip.className = "pos-cell pos-" + (POS_ABBR[p.player_position] || "MID");
+        posChip.textContent = POS_ABBR[p.player_position] || p.player_position;
+        tdPos.appendChild(posChip);
+      } else { tdPos.textContent = "–"; }
+      tr.appendChild(tdPos);
+
+      const tdTeam = document.createElement("td");
+      tdTeam.className = "pinned pinned-2";
+      if (p.team_name){
+        const teamCell = document.createElement("div"); teamCell.className = "team-cell";
+        const logoSrc = TEAM_LOGOS[p.team_name];
+        if (logoSrc){
+          const img = document.createElement("img"); img.src = logoSrc; img.alt = "";
+          teamCell.appendChild(img);
+        }
+        const teamName = document.createElement("span"); teamName.textContent = p.team_name;
+        teamCell.appendChild(teamName);
+        tdTeam.appendChild(teamCell);
+      } else { tdTeam.textContent = "–"; }
+      tr.appendChild(tdTeam);
+
+      cols.forEach(k => {
+        const td = document.createElement("td");
+        const numeric = NUMERIC_KEYS.has(k);
+        if (numeric) td.className = "num";
+        const val = p[k];
+        if (k === "status"){
+          if (val){
+            const chip = document.createElement("span");
+            chip.className = "status-cell status-" + val;
+            chip.title = STATUS_DICT[val] || val;
+            const dot = document.createElement("span"); dot.className = "status-dot";
+            chip.appendChild(dot);
+            chip.appendChild(document.createTextNode(String(val).toUpperCase()));
+            td.appendChild(chip);
+          } else { td.textContent = "–"; td.classList.add("muted-cell"); }
+        } else if (k === "can_select"){
+          const chip = document.createElement("span");
+          chip.className = "status-cell sel-" + (val ? "yes" : "no");
+          const dot = document.createElement("span"); dot.className = "status-dot";
+          chip.appendChild(dot);
+          chip.appendChild(document.createTextNode(val ? "Yes" : "No"));
+          td.appendChild(chip);
+        } else if (k === "chance_of_playing_next_round"){
+          const text = formatValue(k, val);
+          td.textContent = text;
+          if (text === "–"){ td.classList.add("muted-cell"); }
+          else { td.style.color = chanceColor(val); td.style.fontWeight = "700"; }
+        } else if (k === "price_change_percent"){
+          if (val === null || val === undefined || val === ""){
+            td.textContent = "–"; td.classList.add("muted-cell");
+          } else {
+            td.appendChild(buildPriceDeltaCell(val));
+          }
+        } else if (k === "cost_change_event_fall"){
+          if (val === null || val === undefined || val === ""){
+            td.textContent = "–"; td.classList.add("muted-cell");
+          } else {
+            td.textContent = formatValue(k, val);
+            td.classList.add("price");
+          }
+        } else if (k === "selected_by_percent"){
+          const text = formatValue(k, val);
+          td.textContent = text;
+          const band = selectedByBand(val);
+          if (text === "–" || !band){ td.classList.add("muted-cell"); }
+          else { td.style.color = band.color; }
+        } else if (k.indexOf("fdr_") === 0){
+          td.classList.add("fdr-cell");
+          const idx = parseInt(k.slice(4), 10) - 1;
+          const f = p.fixtures && p.fixtures[idx];
+          if (f){ td.appendChild(buildFdrChip(f)); }
+          else { td.textContent = "–"; td.classList.add("muted-cell"); }
+        } else if (k === "player_price"){
+          const text = formatValue(k, val);
+          td.classList.add("price");
+          if (text === "–"){ td.textContent = text; td.classList.add("muted-cell"); }
+          else {
+            const wrap = document.createElement("span"); wrap.className = "price-cell";
+            const priceText = document.createElement("span"); priceText.textContent = text;
+            wrap.appendChild(priceText);
+            const band = priceDeltaBand(p.price_change_percent);
+            const up = band && (band.key === "up" || band.key === "up_strong" || band.key === "rising");
+            const down = band && (band.key === "down" || band.key === "falling");
+            if (up || down){
+              const count = (band.key === "rising" || band.key === "falling") ? 2 : 1;
+              const arrow = document.createElement("span");
+              arrow.className = "price-arrow";
+              arrow.style.color = up ? RAG_GREEN : RAG_RED;
+              arrow.title = "Price trending " + (up ? "up" : "down")
+                + (count === 2 ? " - imminent change" : "")
+                + " (Δ " + formatValue("price_change_percent", p.price_change_percent) + ")";
+              for (let i = 0; i < count; i++){
+                const line = document.createElement("span");
+                line.textContent = up ? "▲" : "▼";
+                arrow.appendChild(line);
+              }
+              wrap.appendChild(arrow);
+            }
+            td.appendChild(wrap);
+          }
+        } else {
+          const text = formatValue(k, val);
+          td.textContent = text;
+          if (text === "–") td.classList.add("muted-cell");
+        }
+        tr.appendChild(td);
+      });
+      frag.appendChild(tr);
+    });
+    bodyRows.innerHTML = "";
+    bodyRows.appendChild(frag);
+    emptyState.hidden = rows.length !== 0;
+    reflowPinnedOffsets();
+  }
+
+  // ---------- CSV export ----------
+  function csvEscape(v){
+    const s = String(v);
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function buildCSV(){
+    const rows = getFilteredSortedRows();
+    const cols = orderedVisible();
+    const headers = ["Player","Position","Team"].concat(cols.map(k => COLUMN_INFO[k].label));
+    const lines = [headers.map(csvEscape).join(",")];
+    rows.forEach(p => {
+      const vals = [p.player_name || "", p.player_position || "", p.team_name || ""];
+      cols.forEach(k => {
+        let v;
+        if (k === "status") v = STATUS_DICT[p.status] || p.status || "";
+        else if (k === "can_select") v = p.can_select ? "Yes" : "No";
+        else if (k.indexOf("fdr_") === 0){
+          const idx = parseInt(k.slice(4), 10) - 1;
+          const f = p.fixtures && p.fixtures[idx];
+          v = f ? (f.opp + (f.home ? " (H)" : " (A)") + " FDR" + f.fdr) : "";
+        } else {
+          v = p[k];
+          if (v === null || v === undefined) v = "";
+        }
+        vals.push(v);
+      });
+      lines.push(vals.map(csvEscape).join(","));
+    });
+    return lines.join("\r\n");
+  }
+  // Standalone build: use a plain browser download instead of the Claude Artifact
+  // "downloads" capability (that API only exists inside claude.ai's sandbox).
+  function saveCsvFile(filename, text){
+    const blob = new Blob([text], {type: "text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  const downloadBtn = document.getElementById("downloadBtn");
+  downloadBtn.addEventListener("click", async () => {
+    const original = downloadBtn.textContent;
+    downloadBtn.disabled = true; downloadBtn.textContent = "Preparing…";
+    try{
+      saveCsvFile("fpl-view-" + SNAPSHOT_DATE + ".csv", buildCSV());
+      downloadBtn.textContent = "Saved ✓";
+    }catch(err){
+      downloadBtn.textContent = "Couldn't save";
+    }finally{
+      setTimeout(() => { downloadBtn.textContent = original; downloadBtn.disabled = false; }, 1600);
+    }
+  });
+
+  // ---------- Team View (hardcoded template: Team + N1..N10, one row per club) ----------
+  const teamHeadRow = document.getElementById("teamHeadRow");
+  const teamBodyRows = document.getElementById("teamBodyRows");
+  function teamSortValue(name, key){
+    if (key === "team") return name;
+    const idx = parseInt(key.slice(4), 10) - 1;
+    const f = (TEAM_FIXTURES[name] || [])[idx];
+    return f ? f.fdr : null;
+  }
+  function compareTeams(a, b, key, dir){
+    const av = teamSortValue(a, key), bv = teamSortValue(b, key);
+    const an = isNullish(av), bn = isNullish(bv);
+    if (an && bn) return 0;
+    if (an) return 1;
+    if (bn) return -1;
+    let cmp;
+    if (typeof av === "number" && typeof bv === "number") cmp = av - bv;
+    else cmp = String(av).localeCompare(String(bv), undefined, {numeric:true, sensitivity:"base"});
+    return dir === "asc" ? cmp : -cmp;
+  }
+  function teamHeaderButton(key, label){
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const isActive = teamSortKey === key;
+    if (isActive) btn.classList.add("active");
+    const arrow = document.createElementNS("http://www.w3.org/2000/svg","svg");
+    arrow.setAttribute("viewBox","0 0 12 12"); arrow.setAttribute("class","arrow"); arrow.setAttribute("fill","currentColor");
+    const dirNow = isActive ? teamSortDir : "asc";
+    arrow.innerHTML = dirNow === "asc" ? '<path d="M6 3 L10 9 L2 9 Z"/>' : '<path d="M6 9 L2 3 L10 3 Z"/>';
+    const span = document.createElement("span"); span.textContent = label;
+    btn.appendChild(span); btn.appendChild(arrow);
+    btn.addEventListener("click", () => {
+      if (teamSortKey === key){ teamSortDir = teamSortDir === "asc" ? "desc" : "asc"; }
+      else { teamSortKey = key; teamSortDir = "asc"; }
+      buildTeamHead(); renderTeamView();
+    });
+    return btn;
+  }
+  // ---- Team View column widths (drag to resize, same mechanism as Player View) ----
+  let teamColumnWidths = loadState("pitchLedger.teamColWidths", {});
+  function teamDefaultWidth(key){ return key === "team" ? 180 : 54; }
+  function teamWidthFor(key){ return teamColumnWidths[key] || teamDefaultWidth(key); }
+  const teamColGroupEl = document.getElementById("teamColGroup");
+  const teamTableEl = document.getElementById("teamTable");
+  function teamColumnKeys(){
+    const keys = ["team"];
+    for (let i = 1; i <= FDR_COLUMN_COUNT; i++) keys.push("fdr_" + i);
+    return keys;
+  }
+  function buildTeamColGroup(){
+    teamColGroupEl.innerHTML = "";
+    teamColumnKeys().forEach(key => {
+      const col = document.createElement("col");
+      col.dataset.col = key;
+      col.style.width = teamWidthFor(key) + "px";
+      teamColGroupEl.appendChild(col);
+    });
+    syncTeamTableWidth();
+  }
+  function syncTeamTableWidth(){
+    let total = 0;
+    teamColGroupEl.querySelectorAll("col").forEach(c => { total += parseInt(c.style.width, 10) || 0; });
+    teamTableEl.style.width = total + "px";
+  }
+  function attachTeamResizer(th, key){
+    const handle = document.createElement("div");
+    handle.className = "col-resizer";
+    handle.draggable = false;
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const col = teamColGroupEl.querySelector('col[data-col="' + cssEscape(key) + '"]');
+      if (!col) return;
+      handle.setPointerCapture(e.pointerId);
+      const startX = e.clientX;
+      const startWidth = parseInt(col.style.width, 10) || teamDefaultWidth(key);
+      const minW = key === "team" ? 90 : 44;
+      const maxW = 420;
+      handle.classList.add("active");
+      function onMove(ev){
+        const w = Math.min(maxW, Math.max(minW, Math.round(startWidth + (ev.clientX - startX))));
+        col.style.width = w + "px";
+        syncTeamTableWidth();
+      }
+      function onUp(ev){
+        handle.releasePointerCapture(e.pointerId);
+        handle.classList.remove("active");
+        teamColumnWidths[key] = parseInt(col.style.width, 10);
+        saveState("pitchLedger.teamColWidths", teamColumnWidths);
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+      }
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp);
+    });
+    th.appendChild(handle);
+  }
+  function buildTeamHead(){
+    teamHeadRow.innerHTML = "";
+    const th0 = document.createElement("th");
+    th0.className = "col-text";
+    th0.appendChild(teamHeaderButton("team", "Team"));
+    attachTeamResizer(th0, "team");
+    teamHeadRow.appendChild(th0);
+    for (let i = 1; i <= FDR_COLUMN_COUNT; i++){
+      const key = "fdr_" + i;
+      const th = document.createElement("th");
+      th.appendChild(teamHeaderButton(key, "N" + i));
+      attachTeamResizer(th, key);
+      teamHeadRow.appendChild(th);
+    }
+    buildTeamColGroup();
+  }
+  function renderTeamView(){
+    const rows = TEAM_NAMES.slice().sort((a,b) => compareTeams(a, b, teamSortKey, teamSortDir));
+    const frag = document.createDocumentFragment();
+    rows.forEach(name => {
+      const tr = document.createElement("tr");
+      const td0 = document.createElement("td");
+      const cell = document.createElement("div"); cell.className = "team-cell";
+      const logoSrc = TEAM_LOGOS[name];
+      if (logoSrc){ const img = document.createElement("img"); img.src = logoSrc; img.alt = ""; cell.appendChild(img); }
+      const nameSpan = document.createElement("span"); nameSpan.textContent = name; nameSpan.style.fontWeight = "600";
+      cell.appendChild(nameSpan);
+      td0.appendChild(cell);
+      tr.appendChild(td0);
+
+      const fixtures = TEAM_FIXTURES[name] || [];
+      for (let i = 0; i < FDR_COLUMN_COUNT; i++){
+        const td = document.createElement("td");
+        td.classList.add("fdr-cell");
+        const f = fixtures[i];
+        if (f){ td.appendChild(buildFdrChip(f)); }
+        else { td.textContent = "–"; td.classList.add("muted-cell"); }
+        tr.appendChild(td);
+      }
+      frag.appendChild(tr);
+    });
+    teamBodyRows.innerHTML = "";
+    teamBodyRows.appendChild(frag);
+  }
+
+  // ---------- View switcher ----------
+  const playerViewBtn = document.getElementById("playerViewBtn");
+  const teamViewBtn = document.getElementById("teamViewBtn");
+  const playerTableShell = document.getElementById("playerTableShell");
+  const teamTableShell = document.getElementById("teamTableShell");
+  const toolbarEl = document.getElementById("toolbar");
+  let teamViewBuilt = false;
+  function setView(view){
+    const isTeam = view === "team";
+    playerViewBtn.classList.toggle("active", !isTeam);
+    playerViewBtn.setAttribute("aria-pressed", String(!isTeam));
+    teamViewBtn.classList.toggle("active", isTeam);
+    teamViewBtn.setAttribute("aria-pressed", String(isTeam));
+    toolbarEl.hidden = isTeam;
+    playerTableShell.hidden = isTeam;
+    teamTableShell.hidden = !isTeam;
+    if (isTeam && !teamViewBuilt){ buildTeamHead(); renderTeamView(); teamViewBuilt = true; }
+    try{ localStorage.setItem("pitchLedger.view", view); }catch(e){}
+  }
+  playerViewBtn.addEventListener("click", () => setView("player"));
+  teamViewBtn.addEventListener("click", () => setView("team"));
+
+  // ---------- saved views ----------
+  const viewsBtn = document.getElementById("viewsBtn");
+  const viewsPanel = document.getElementById("viewsPanel");
+  function buildViewsPanel(){
+    viewsPanel.innerHTML = "";
+    const saveRow = document.createElement("div");
+    saveRow.className = "views-save-row";
+    const input = document.createElement("input");
+    input.type = "text"; input.placeholder = "Save or Open this View"; input.maxLength = 40;
+    input.className = "views-input";
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button"; saveBtn.className = "btn"; saveBtn.textContent = "Save";
+    saveBtn.addEventListener("click", () => {
+      const name = input.value.trim();
+      if (!name){ input.focus(); return; }
+      saveCurrentView(name);
+      input.value = "";
+    });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter"){ e.preventDefault(); saveBtn.click(); } });
+    input.addEventListener("click", (e) => e.stopPropagation());
+    saveRow.appendChild(input); saveRow.appendChild(saveBtn);
+    viewsPanel.appendChild(saveRow);
+
+    if (savedViews.length){
+      savedViews.forEach((v, i) => {
+        const row = document.createElement("div"); row.className = "view-row";
+        const nameBtn = document.createElement("button");
+        nameBtn.type = "button"; nameBtn.className = "view-name"; nameBtn.textContent = v.name;
+        nameBtn.title = "Load this view";
+        nameBtn.addEventListener("click", () => applyView(v));
+        const delBtn = document.createElement("button");
+        delBtn.type = "button"; delBtn.className = "view-delete"; delBtn.textContent = "✕";
+        delBtn.setAttribute("aria-label", "Delete view \"" + v.name + "\"");
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          savedViews.splice(i, 1);
+          saveState("pitchLedger.savedViews", savedViews);
+          buildViewsPanel();
+        });
+        row.appendChild(nameBtn); row.appendChild(delBtn);
+        viewsPanel.appendChild(row);
+      });
+    } else {
+      const empty = document.createElement("div");
+      empty.className = "views-empty";
+      empty.textContent = "No saved views yet — set up your filters, sort and columns, then save them here.";
+      viewsPanel.appendChild(empty);
+    }
+  }
+  function saveCurrentView(name){
+    const state = {
+      name,
+      visibleCols: Array.from(visibleCols),
+      columnOrder: columnOrder.slice(),
+      sortKey, sortDir,
+      posFilter: Array.from(posFilter),
+      teamFilter,
+      statusFilter: Array.from(statusFilter),
+      selectedByFilter: Array.from(selectedByFilter),
+      priceFilter: [priceFilter.min, priceFilter.max],
+      priceDeltaFilter: Array.from(priceDeltaFilter),
+      columnWidths: Object.assign({}, columnWidths),
+    };
+    const existingIdx = savedViews.findIndex(v => v.name === name);
+    if (existingIdx !== -1) savedViews[existingIdx] = state; else savedViews.push(state);
+    saveState("pitchLedger.savedViews", savedViews);
+    buildViewsPanel();
+  }
+  function applyView(v){
+    visibleCols = new Set(v.visibleCols && v.visibleCols.length ? v.visibleCols : DEFAULT_VISIBLE);
+    columnOrder = sanitizeOrder(v.columnOrder);
+    sortKey = v.sortKey || "total_points";
+    sortDir = v.sortDir || "desc";
+    posFilter = new Set(v.posFilter || []);
+    teamFilter = v.teamFilter || "";
+    statusFilter = new Set(v.statusFilter || []);
+    selectedByFilter = new Set(v.selectedByFilter || []);
+    priceFilter = (v.priceFilter && v.priceFilter.length === 2)
+      ? { min: Math.max(PRICE_MIN, v.priceFilter[0]), max: Math.min(PRICE_MAX, v.priceFilter[1]) }
+      : { min: PRICE_MIN, max: PRICE_MAX };
+    priceDeltaFilter = new Set(v.priceDeltaFilter || []);
+    columnWidths = Object.assign({}, v.columnWidths || {});
+
+    saveState("pitchLedger.cols", Array.from(visibleCols));
+    saveState("pitchLedger.colOrder", columnOrder);
+    saveState("pitchLedger.sortKey", sortKey);
+    saveState("pitchLedger.sortDir", sortDir);
+    saveState("pitchLedger.pos", Array.from(posFilter));
+    saveState("pitchLedger.team", teamFilter);
+    saveState("pitchLedger.status", Array.from(statusFilter));
+    saveState("pitchLedger.selectedByBand", Array.from(selectedByFilter));
+    saveState("pitchLedger.priceRange", [priceFilter.min, priceFilter.max]);
+    saveState("pitchLedger.priceDeltaBand", Array.from(priceDeltaFilter));
+    saveState("pitchLedger.colWidths", columnWidths);
+
+    teamSelectEl.value = teamFilter;
+    updateTeamSelectHighlight();
+    posChipsEl.querySelectorAll(".chip").forEach((c, i) => {
+      const pos = ["Goalkeeper","Defender","Midfielder","Forward"][i];
+      c.setAttribute("aria-pressed", posFilter.has(pos) ? "true" : "false");
+    });
+    buildColPanel(); buildStatusPanel(); buildSelectedByPanel(); buildPriceInline(); buildPriceDeltaPanel(); buildHead(); render();
+    updateColBtnLabel(); updateStatusBtnLabel(); updateSelectedByBtnLabel(); updatePriceDeltaBtnLabel();
+    closeAllPanels();
+  }
+  viewsBtn.addEventListener("click", () => {
+    const open = viewsPanel.hasAttribute("hidden");
+    closeAllPanels();
+    if (open){ viewsPanel.removeAttribute("hidden"); viewsBtn.setAttribute("aria-expanded","true"); }
+  });
+
+  // ---------- saved selections (named groups of players) ----------
+  let savedSelections = loadState("pitchLedger.savedSelections", []);
+  const selectionsBtn = document.getElementById("selectionsBtn");
+  const selectionsPanel = document.getElementById("selectionsPanel");
+  function buildSelectionsPanel(){
+    selectionsPanel.innerHTML = "";
+    const saveRow = document.createElement("div");
+    saveRow.className = "views-save-row";
+    const input = document.createElement("input");
+    input.type = "text"; input.placeholder = "Save or Open this Selection"; input.maxLength = 40;
+    input.className = "views-input";
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button"; saveBtn.className = "btn"; saveBtn.textContent = "Save";
+    saveBtn.addEventListener("click", () => {
+      const name = input.value.trim();
+      if (!name){ input.focus(); return; }
+      saveCurrentSelection(name);
+      input.value = "";
+    });
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter"){ e.preventDefault(); saveBtn.click(); } });
+    saveRow.appendChild(input); saveRow.appendChild(saveBtn);
+    selectionsPanel.appendChild(saveRow);
+
+    if (savedSelections.length){
+      savedSelections.forEach((s, i) => {
+        const row = document.createElement("div"); row.className = "view-row";
+        const nameBtn = document.createElement("button");
+        nameBtn.type = "button"; nameBtn.className = "view-name";
+        nameBtn.textContent = s.name + " (" + s.ids.length + ")";
+        nameBtn.title = "Load this group of players";
+        nameBtn.addEventListener("click", () => applySelection(s));
+        const delBtn = document.createElement("button");
+        delBtn.type = "button"; delBtn.className = "view-delete"; delBtn.textContent = "✕";
+        delBtn.setAttribute("aria-label", "Delete selection \"" + s.name + "\"");
+        delBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          savedSelections.splice(i, 1);
+          saveState("pitchLedger.savedSelections", savedSelections);
+          buildSelectionsPanel();
+        });
+        row.appendChild(nameBtn); row.appendChild(delBtn);
+        selectionsPanel.appendChild(row);
+      });
+    } else {
+      const empty = document.createElement("div");
+      empty.className = "views-empty";
+      empty.textContent = "No saved groups yet — tick some players, then save them here.";
+      selectionsPanel.appendChild(empty);
+    }
+  }
+  function saveCurrentSelection(name){
+    const state = { name, ids: Array.from(selectedIds) };
+    const existingIdx = savedSelections.findIndex(s => s.name === name);
+    if (existingIdx !== -1) savedSelections[existingIdx] = state; else savedSelections.push(state);
+    saveState("pitchLedger.savedSelections", savedSelections);
+    buildSelectionsPanel();
+  }
+  function applySelection(s){
+    selectedIds = new Set(s.ids || []);
+    saveState("pitchLedger.selectedIds", Array.from(selectedIds));
+    render();
+    closeAllPanels();
+  }
+  selectionsBtn.addEventListener("click", () => {
+    const open = selectionsPanel.hasAttribute("hidden");
+    closeAllPanels();
+    if (open){ selectionsPanel.removeAttribute("hidden"); selectionsBtn.setAttribute("aria-expanded","true"); }
+  });
+
+  // ---------- init ----------
+  posChipsEl.querySelectorAll(".chip").forEach((c, i) => {
+    const pos = ["Goalkeeper","Defender","Midfielder","Forward"][i];
+    c.setAttribute("aria-pressed", posFilter.has(pos) ? "true" : "false");
+  });
+  (function(){
+    const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const snapDateTime = new Date(SNAPSHOT_DATETIME);
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Paris", hour12: false,
+      day: "numeric", month: "numeric", year: "2-digit", hour: "2-digit", minute: "2-digit",
+    }).formatToParts(snapDateTime);
+    const get = (type) => { const p = parts.find(x => x.type === type); return p ? p.value : ""; };
+    const dateStr = parseInt(get("day"), 10) + " " + MONTHS[parseInt(get("month"), 10) - 1] + " " + get("year");
+    const stamp = dateStr + ", " + get("hour") + ":" + get("minute") + " CET"; // e.g. "2 Sep 26, 14:09 CET"
+    document.getElementById("updatedText").textContent = "Last Updated " + stamp;
+  })();
+  applyTheme();
+  applyMenuPosition();
+  buildColPanel();
+  buildStatusPanel();
+  buildSelectedByPanel();
+  buildPriceInline();
+  buildPriceDeltaPanel();
+  buildViewsPanel();
+  buildSelectionsPanel();
+
+  // If a saved View named "Default" exists, load it as the opening state.
+  // This only reads this browser's own saved Views - it never deletes or
+  // overwrites anything, so the "Default" view stays in the View panel too.
+  const openingView = savedViews.find(v => v.name === "Default");
+  if (openingView){
+    applyView(openingView);
+  } else {
+    buildHead();
+    render();
+  }
+
+  updateColBtnLabel();
+  updateStatusBtnLabel();
+  updateSelectedByBtnLabel();
+  updatePriceDeltaBtnLabel();
+  setView(loadState("pitchLedger.view", "player"));
+
+  }catch(err){
+    try{
+      const box = document.createElement("div");
+      box.style.cssText = "background:#c0392b;color:#fff;padding:14px 18px;font-family:ui-monospace,Consolas,monospace;font-size:13px;white-space:pre-wrap;position:relative;z-index:999;";
+      box.textContent = "FPL View hit an error while loading:\n" + String((err && err.stack) || err);
+      document.body.insertBefore(box, document.body.firstChild);
+    }catch(e2){}
+    throw err;
+  }
+})();
+</script>
+</body>
+</html>
