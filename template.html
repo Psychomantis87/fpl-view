@@ -901,6 +901,19 @@
   const DEFAULT_COLUMN_ORDER = DEFAULT_COLUMN_ORDER_HEAD.concat(
     ALL_KEYS.filter(k => !DEFAULT_COLUMN_ORDER_HEAD.includes(k))
   );
+  // Matches the reference screenshot's proportions - Player wide enough for a
+  // full name, the rest (Position/Team/Status/Cost columns) noticeably
+  // thinner. Anything not listed here still falls back to defaultWidth().
+  const DEFAULT_COLUMN_WIDTHS = {
+    player_name: 230,
+    player_position: 95,
+    team_name: 140,
+    status: 90,
+    player_price: 105,
+    cost_change_event_fall: 70,
+    price_change_percent: 115,
+    selected_by_percent: 95,
+  };
 
   const NUMERIC_KEYS = new Set(PLAYERS.length ? Object.keys(PLAYERS[0]).filter(k => typeof PLAYERS[0][k] === "number") : []);
   // widen numeric detection: a key is numeric if ANY row has a number for it
@@ -937,7 +950,7 @@
   let teamSortKey = "team";
   let teamSortDir = "asc";
   let searchText = "";
-  let columnWidths = loadState("pitchLedger.colWidths", {});
+  let columnWidths = loadState("pitchLedger.colWidths", null) || Object.assign({}, DEFAULT_COLUMN_WIDTHS);
   let savedViews = loadState("pitchLedger.savedViews", []);
   let selectedIds = new Set(loadState("pitchLedger.selectedIds", []));
   let showSelectedOnly = loadState("pitchLedger.selectedOnly", false);
@@ -1467,7 +1480,7 @@
     posFilter = new Set(); teamFilter = ""; statusFilter = new Set(); selectedByFilter = new Set();
     priceFilter = { min: PRICE_MIN, max: PRICE_MAX }; priceDeltaFilter = new Set();
     showSelectedOnly = false;
-    columnWidths = {}; columnOrder = DEFAULT_COLUMN_ORDER.slice();
+    columnWidths = Object.assign({}, DEFAULT_COLUMN_WIDTHS); columnOrder = DEFAULT_COLUMN_ORDER.slice();
     searchText = ""; document.getElementById("search").value = "";
     teamSelectEl.value = "";
     updateTeamSelectHighlight();
