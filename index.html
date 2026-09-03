@@ -881,10 +881,26 @@
   const GROUP_ORDER = ["Identity","Fixtures","Status","Price","Ownership","Points & Form","Match Stats","Defensive","Per 90","ICT Index","Expected Stats","Set Pieces","Scout"];
   const PINNED_KEYS = ["player_name","player_position","team_name"]; // frozen first columns, not togglable/draggable
   const ALL_KEYS = Object.keys(COLUMN_INFO).filter(k => !PINNED_KEYS.includes(k) && k !== "first_name" && k !== "second_name");
-  const DEFAULT_VISIBLE = ["fdr_1","fdr_2","fdr_3","fdr_4","fdr_5",
-    "player_price","total_points","points_per_game","form",
-    "selected_by_percent","minutes","goals_scored","assists","clean_sheets","bonus","ict_index",
-    "expected_goal_involvements","status"];
+  // The user's saved "Default" View, reconstructed column-for-column so it's
+  // the real app default for every visitor - not just something saved in one
+  // browser's localStorage. Order here doubles as the default column order.
+  const DEFAULT_COLUMN_ORDER_HEAD = [
+    "status","player_price","cost_change_event_fall","price_change_percent","selected_by_percent",
+    "fdr_1","fdr_2","fdr_3","fdr_4","fdr_5",
+    "event_points","total_points","form","transfers_in_event","transfers_out_event",
+    "ict_index_rank","chance_of_playing_next_round",
+    "minutes","starts","goals_scored","assists","clean_sheets","defensive_contribution",
+    "yellow_cards","red_cards","bps","bonus",
+    "expected_goals","expected_assists","expected_goal_involvements","expected_goals_conceded",
+    "in_dreamteam","dreamteam_count","now_cost_rank","selected_rank","news","news_added",
+  ];
+  const DEFAULT_VISIBLE = DEFAULT_COLUMN_ORDER_HEAD.slice();
+  // Everything not in the default set still gets a sane starting position -
+  // right after it, in the normal declared order - for whenever a visitor
+  // turns more columns on via the Columns panel.
+  const DEFAULT_COLUMN_ORDER = DEFAULT_COLUMN_ORDER_HEAD.concat(
+    ALL_KEYS.filter(k => !DEFAULT_COLUMN_ORDER_HEAD.includes(k))
+  );
 
   const NUMERIC_KEYS = new Set(PLAYERS.length ? Object.keys(PLAYERS[0]).filter(k => typeof PLAYERS[0][k] === "number") : []);
   // widen numeric detection: a key is numeric if ANY row has a number for it
@@ -906,7 +922,7 @@
   }
 
   let visibleCols = new Set(loadState("pitchLedger.cols", DEFAULT_VISIBLE));
-  let sortKey = loadState("pitchLedger.sortKey", "total_points");
+  let sortKey = loadState("pitchLedger.sortKey", "event_points");
   let sortDir = loadState("pitchLedger.sortDir", "desc");
   let posFilter = new Set(loadState("pitchLedger.pos", []));
   let teamFilter = loadState("pitchLedger.team", "");
@@ -934,7 +950,7 @@
     ALL_KEYS.forEach(k => { if (!clean.includes(k)) clean.push(k); });
     return clean;
   }
-  let columnOrder = sanitizeOrder(loadState("pitchLedger.colOrder", null));
+  let columnOrder = sanitizeOrder(loadState("pitchLedger.colOrder", DEFAULT_COLUMN_ORDER));
 
   function defaultWidth(key){
     if (key === "player_name") return 108;
@@ -1447,11 +1463,11 @@
 
   document.getElementById("resetBtn").addEventListener("click", () => {
     visibleCols = new Set(DEFAULT_VISIBLE);
-    sortKey = "total_points"; sortDir = "desc";
+    sortKey = "event_points"; sortDir = "desc";
     posFilter = new Set(); teamFilter = ""; statusFilter = new Set(); selectedByFilter = new Set();
     priceFilter = { min: PRICE_MIN, max: PRICE_MAX }; priceDeltaFilter = new Set();
     showSelectedOnly = false;
-    columnWidths = {}; columnOrder = ALL_KEYS.slice();
+    columnWidths = {}; columnOrder = DEFAULT_COLUMN_ORDER.slice();
     searchText = ""; document.getElementById("search").value = "";
     teamSelectEl.value = "";
     updateTeamSelectHighlight();
