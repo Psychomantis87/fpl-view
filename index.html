@@ -593,14 +593,6 @@
   @media (prefers-reduced-motion: reduce){ .spinner{animation:none; border-top-color:var(--border-strong);} }
   @keyframes spin{ to{ transform:rotate(360deg); } }
 </style>
-<script>
-  window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/insights/script.js"></script>
-<script>
-  window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
 </head>
 <body>
 
@@ -658,7 +650,7 @@
       <div class="col-panel" id="selectionsPanel" hidden></div>
     </div>
     <div class="col-picker">
-      <button class="btn" id="colBtn" aria-expanded="false">Columns</button>
+      <button class="btn" id="colBtn" aria-expanded="false">Stats</button>
       <div class="col-panel" id="colPanel" hidden></div>
     </div>
     <button class="btn ghost" id="resetBtn">Reset</button>
@@ -913,7 +905,7 @@
   // full name, the rest (Position/Team/Status/Cost columns) noticeably
   // thinner. Anything not listed here still falls back to defaultWidth().
   const DEFAULT_COLUMN_WIDTHS = {
-    player_name: 230,
+    player_name: 168,
     player_position: 95,
     team_name: 140,
     status: 90,
@@ -1390,7 +1382,7 @@
     updateColBtnLabel();
   }
   function updateColBtnLabel(){
-    colBtn.textContent = "Columns (" + visibleCols.size + "/" + ALL_KEYS.length + ")";
+    colBtn.textContent = "Stats (" + visibleCols.size + "/" + ALL_KEYS.length + ")";
   }
   colBtn.addEventListener("click", () => {
     const open = colPanel.hasAttribute("hidden");
@@ -1743,7 +1735,9 @@
 
       const td0 = document.createElement("td");
       td0.className = "pinned pinned-0";
-      td0.title = p.web_name && p.web_name !== p.player_name ? p.player_name + " (" + p.web_name + ")" : (p.player_name || "");
+      // Pinned column shows FPL's short "web name" (matches the official site);
+      // the full name is still available as a hover tooltip when it differs.
+      td0.title = p.player_name && p.player_name !== p.web_name ? p.player_name : (p.web_name || "");
       const cell = document.createElement("div"); cell.className = "player-cell";
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.checked = selectedIds.has(p.id);
@@ -1752,7 +1746,7 @@
         saveState("pitchLedger.selectedIds", Array.from(selectedIds));
         render();
       });
-      const nameSpan = document.createElement("span"); nameSpan.textContent = p.player_name || "–";
+      const nameSpan = document.createElement("span"); nameSpan.textContent = p.web_name || p.player_name || "–";
       cell.appendChild(cb); cell.appendChild(nameSpan);
       td0.appendChild(cell);
       tr.appendChild(td0);
